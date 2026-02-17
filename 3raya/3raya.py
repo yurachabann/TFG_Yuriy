@@ -2,24 +2,29 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 import random
 
+#y=0   (0,0) (1,0) (2,0)
+#y=1   (0,1) (1,1) (2,1)
+#y=2   (0,2) (1,2) (2,2)
+
+        #x=0   x=1   x=2
+
 # ============================================================
-# 1. Estado del juego
+# 1. Game State
 # ============================================================
 
 @dataclass
 class TicTacToeGameState:
     grid_size: int = 3
-    board: List[int] = None  # 0 = vacío, 1 = X, 2 = O
+    board: List[int] = None  # 0 = empty, 1 = X, 2 = O
     current_player: int = 1
     is_terminal: bool = False
-    winner: Optional[int] = None  # 1, 2 o None (empate)
+    winner: Optional[int] = None  # 1, 2 or None (draw)
 
     def __post_init__(self):
         if self.board is None:
             self.board = [0] * (self.grid_size * self.grid_size)
 
     def clone(self):
-        # Copia para simular jugadas sin modificar el estado real
         return TicTacToeGameState(
             grid_size=self.grid_size,
             board=self.board.copy(),
@@ -36,7 +41,7 @@ class TicTacToeGameState:
 
 
 # ============================================================
-# 2. Acción
+# 2. Action
 # ============================================================
 
 @dataclass
@@ -67,42 +72,42 @@ class TicTacToeForwardModel:
         if state.is_terminal:
             return
 
-        # Aplicar jugada
+        # Apply move
         state.set(action.x, action.y, action.player)
 
-        # Comprobar victoria
+        # Check win
         if self.check_win(state, action.player):
             state.is_terminal = True
             state.winner = action.player
             return
 
-        # Comprobar empate
+        # Check draw
         if all(v != 0 for v in state.board):
             state.is_terminal = True
             state.winner = None
             return
 
-        # Cambiar turno
+        # Switch turn
         state.current_player = 1 if state.current_player == 2 else 2
 
     def check_win(self, state: TicTacToeGameState, player: int) -> bool:
         g = state.grid_size
 
-        # Filas
+        # Rows
         for y in range(g):
             if all(state.get(x, y) == player for x in range(g)):
                 return True
 
-        # Columnas
+        # Columns
         for x in range(g):
             if all(state.get(x, y) == player for y in range(g)):
                 return True
 
-        # Diagonal principal
+        # Main diagonal
         if all(state.get(i, i) == player for i in range(g)):
             return True
 
-        # Diagonal secundaria
+        # Anti diagonal
         if all(state.get(g - 1 - i, i) == player for i in range(g)):
             return True
 
@@ -110,7 +115,7 @@ class TicTacToeForwardModel:
 
 
 # ============================================================
-# 4. Consola
+# 4. Console Utils
 # ============================================================
 
 def print_board(state: TicTacToeGameState):
@@ -122,13 +127,13 @@ def print_board(state: TicTacToeGameState):
 
 
 # ============================================================
-# 5. Minimax (puro)
+# 5. Minimax (pure)
 # ============================================================
 
 def evaluate_terminal(state: TicTacToeGameState, ai_player: int, depth: int) -> int:
     """
-    Puntuación desde la perspectiva de la IA.
-    depth hace que prefiera ganar rápido y retrasar perder.
+    Score from the AI perspective.
+    depth makes it prefer faster wins and slower losses.
     """
     if state.winner is None:
         return 0
@@ -137,14 +142,18 @@ def evaluate_terminal(state: TicTacToeGameState, ai_player: int, depth: int) -> 
     return -10 + depth
 
 
-def minimax(state: TicTacToeGameState, model: TicTacToeForwardModel, ai_player: int, depth: int = 0) -> Tuple[int, Optional[SetCellAction]]:
+def minimax(
+    state: TicTacToeGameState,
+    model: TicTacToeForwardModel,
+    ai_player: int,
+    depth: int = 0
+) -> Tuple[int, Optional[SetCellAction]]:
     """
-    Devuelve (mejor_score, mejor_accion) para el jugador al que le toca en state.current_player.
+    Returns (best_score, best_action) for the player to move in state.current_player.
 
-    - Si le toca a la IA: elige la jugada con score máximo.
-    - Si le toca al rival: elige la jugada con score mínimo (lo peor para la IA).
+    - If it's AI turn: maximize score.
+    - If it's opponent turn: minimize score (worst for AI).
     """
-    # Caso base: si terminó el juego, devolvemos la evaluación
     if state.is_terminal:
         return evaluate_terminal(state, ai_player, depth), None
 
@@ -188,10 +197,9 @@ def minimax(state: TicTacToeGameState, model: TicTacToeForwardModel, ai_player: 
 
 
 def choose_ai_move(state: TicTacToeGameState, model: TicTacToeForwardModel, ai_player: int) -> SetCellAction:
-    # Elegimos la mejor acción llamando a minimax
     score, action = minimax(state, model, ai_player, depth=0)
 
-    # Por seguridad, si algo raro pasa, jugamos una acción válida al azar
+    # Safety fallback
     if action is None:
         return random.choice(model.compute_available_actions(state))
 
@@ -199,31 +207,31 @@ def choose_ai_move(state: TicTacToeGameState, model: TicTacToeForwardModel, ai_p
 
 
 # ============================================================
-# 6. Humano vs IA
+# 6. Human vs AI
 # ============================================================
 
 def read_human_move(state: TicTacToeGameState) -> Tuple[int, int]:
     g = state.grid_size
     while True:
-        raw = input(f"Tu jugada (x y) entre 0 y {g-1}: ").strip()
+        raw = input(f"Your move (x y) between 0 and {g-1}: ").strip()
         parts = raw.split()
 
         if len(parts) != 2:
-            print("Formato inválido. Ejemplo: 1 2")
+            print("Invalid format. Example: 1 2")
             continue
 
         try:
             x, y = int(parts[0]), int(parts[1])
         except ValueError:
-            print("Debes introducir enteros.")
+            print("You must enter integers.")
             continue
 
         if not (0 <= x < g and 0 <= y < g):
-            print("Fuera de rango.")
+            print("Out of range.")
             continue
 
         if state.get(x, y) != 0:
-            print("Casilla ocupada.")
+            print("Cell occupied.")
             continue
 
         return x, y
@@ -234,9 +242,9 @@ def play_human_vs_ai(human_player: int = 1):
     model = TicTacToeForwardModel()
     ai_player = 2 if human_player == 1 else 1
 
-    print("=== TicTacToe: Humano vs IA (Minimax) ===")
-    print(f"Tú: {'X' if human_player == 1 else 'O'} | IA: {'X' if ai_player == 1 else 'O'}")
-    print("Coordenadas: x=columna, y=fila (0..2). Empieza X.")
+    print("=== TicTacToe: Human vs AI (Minimax) ===")
+    print(f"You: {'X' if human_player == 1 else 'O'} | AI: {'X' if ai_player == 1 else 'O'}")
+    print("Coordinates: x=column, y=row (0..2). X starts.")
     print()
     print_board(state)
 
@@ -244,22 +252,52 @@ def play_human_vs_ai(human_player: int = 1):
         if state.current_player == human_player:
             x, y = read_human_move(state)
             model.advance(state, SetCellAction(x, y, human_player))
-            print(f"Tú juegas en ({x}, {y})")
+            print(f"You play at ({x}, {y})")
             print_board(state)
         else:
             action = choose_ai_move(state, model, ai_player)
             model.advance(state, action)
-            print(f"IA juega en ({action.x}, {action.y})")
+            print(f"AI plays at ({action.x}, {action.y})")
             print_board(state)
 
     if state.winner is None:
-        print("Empate 🤝")
+        print("Draw 🤝")
     elif state.winner == human_player:
-        print("¡Ganaste! 🎉")
+        print("You win! 🎉")
     else:
-        print("Gana la IA 🤖🎉")
+        print("AI wins 🤖🎉")
+
+
+# ============================================================
+# 7. NEW: AI vs AI (Minimax vs Minimax) test method
+# ============================================================
+
+def play_ai_vs_ai():
+    state = TicTacToeGameState()
+    model = TicTacToeForwardModel()
+
+    print("=== TicTacToe: AI vs AI (Minimax vs Minimax) ===")
+    print("Expected result with perfect play: Draw ✅")
+    print()
+    print_board(state)
+
+    while not state.is_terminal:
+        current_ai = state.current_player
+        action = choose_ai_move(state, model, current_ai)
+        model.advance(state, action)
+        print(f"Player {current_ai} plays at ({action.x}, {action.y})")
+        print_board(state)
+
+    print("Final result:")
+    if state.winner is None:
+        print("Draw ✅")
+    else:
+        print(f"Winner: Player {state.winner} ❌ (unexpected if both are pure minimax)")
 
 
 if __name__ == "__main__":
-    # Cambia a 2 si quieres ser O en vez de X
-    play_human_vs_ai(human_player=1)
+    # Run the new test method:
+    play_ai_vs_ai()
+
+    # Or play human vs AI:
+    # play_human_vs_ai(human_player=1)  # change to 2 to play as O

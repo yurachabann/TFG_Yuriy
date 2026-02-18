@@ -121,10 +121,24 @@ class TicTacToeForwardModel:
 def print_board(state: TicTacToeGameState):
     symbols = {0: ".", 1: "X", 2: "O"}
     g = state.grid_size
-    for y in range(g):
-        print(" ".join(symbols[state.get(x, y)] for x in range(g)))
-    print()
 
+    # Header de columnas (x)
+    print("     ", end="")
+    for x in range(g):
+        print(f"x={x} ", end="")
+    print("\n")
+
+    for y in range(g):
+        # Etiqueta de fila (y)
+        print(f"y={y}  ", end="")
+
+        # Contenido de la fila
+        for x in range(g):
+            print(f" {symbols[state.get(x, y)]}  ", end="")
+
+        print()  # salto de línea
+
+    print()
 
 # ============================================================
 # 5. Minimax (pure)
@@ -297,7 +311,7 @@ def play_ai_vs_ai():
 
 if __name__ == "__main__":
     # Run the new test method:
-    play_ai_vs_ai()
+   # play_ai_vs_ai()
 
     # Or play human vs AI:
-    # play_human_vs_ai(human_player=1)  # change to 2 to play as O
+     play_human_vs_ai(human_player=1)  # change to 2 to play as O

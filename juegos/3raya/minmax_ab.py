@@ -5,7 +5,7 @@ from generic.game_state import GameState
 from generic.game_action import GameAction
 from generic.forward_model import ForwardModel
 
-from algoritmos.minimax import choose_ai_move
+from algoritmos.minmax_ab import choose_ai_move_alpha_beta
 
 
 # ============================================================
@@ -208,7 +208,7 @@ def play_human_vs_ai():
 
         else:
 
-            action, stats = choose_ai_move(state, model, ai)
+            action, stats = choose_ai_move_alpha_beta(state, model, ai)
 
             total_nodes_visited += stats.nodes_visited
             total_cutoffs += stats.cutoffs

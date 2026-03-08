@@ -6,7 +6,7 @@ from .game_state import GameState #dentro d misma carpeta
 from .game_action import GameAction
 
 S = TypeVar("S", bound=GameState) #S solo puede ser GameState o una clase que herede de GameState.
-A = TypeVar("A", bound=GameAction)
+A = TypeVar("A", bound=GameAction) #typevar = tipo generico
 
 class ForwardModel(ABC, Generic[S, A]):
     @abstractmethod

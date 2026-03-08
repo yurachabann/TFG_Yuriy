@@ -2,8 +2,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List
 
-from game_state import GameState
-from game_action import GameAction
+from .game_state import GameState #dentro d misma carpeta
+from .game_action import GameAction
 
 S = TypeVar("S", bound=GameState) #S solo puede ser GameState o una clase que herede de GameState.
 A = TypeVar("A", bound=GameAction)

@@ -5,9 +5,6 @@ from generic.game_state import GameState
 from generic.game_action import GameAction
 from generic.forward_model import ForwardModel
 
-from algoritmos.minimax import choose_ai_move
-
-
 # ============================================================
 # GAME STATE
 # ============================================================
@@ -178,11 +175,13 @@ def read_human_move(state: TicTacToeGameState):
             return x, y
 
         print("Cell occupied")
+
+
 # ============================================================
 # GAME LOOP
 # ============================================================
 
-def play_human_vs_ai():
+def play_human_vs_ai(choose_move_fn, algorithm_name: str):
 
     state = TicTacToeGameState()
     model = TicTacToeForwardModel()
@@ -196,6 +195,7 @@ def play_human_vs_ai():
     total_elapsed_time = 0.0
     ai_turns = 0
 
+    print(f"\n=== TicTacToe using {algorithm_name} ===")
     print_board(state)
 
     while not state.is_terminal:
@@ -208,7 +208,7 @@ def play_human_vs_ai():
 
         else:
 
-            action, stats = choose_ai_move(state, model, ai)
+            action, stats = choose_move_fn(state, model, ai)
 
             total_nodes_visited += stats.nodes_visited
             total_cutoffs += stats.cutoffs
@@ -233,6 +233,7 @@ def play_human_vs_ai():
         print("AI wins")
 
     print("\n=== Search statistics ===")
+    print("Algorithm:", algorithm_name)
     print("AI turns:", ai_turns)
     print("Total nodes visited:", total_nodes_visited)
     print("Total cutoffs:", total_cutoffs)
@@ -241,8 +242,3 @@ def play_human_vs_ai():
 
     if ai_turns > 0:
         print("Average time per AI turn:", total_elapsed_time / ai_turns)
-
-
-if __name__ == "__main__":
-
-    play_human_vs_ai()

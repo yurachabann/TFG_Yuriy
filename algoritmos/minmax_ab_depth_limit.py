@@ -48,7 +48,6 @@ def alpha_beta(
     if state.is_terminal:
         return model.evaluate_terminal(state, ai_player, depth), None
 
-    # CAMBIO IMPORTANTE:
     # Si llegamos a la profundidad máxima, NO seguimos bajando.
     # En ese punto usamos una heurística para estimar lo bueno/malo
     # del estado aunque no sea terminal.
@@ -61,9 +60,8 @@ def alpha_beta(
 
     is_ai_turn = (state.current_player == ai_player)
 
-    # ============================================================
-    # CASO MAX: turno de la IA
-    # ============================================================
+    # CASO MAX
+
     if is_ai_turn:
         best_score = float("-inf")
         best_action = None
@@ -98,9 +96,8 @@ def alpha_beta(
 
         return int(best_score), best_action
 
-    # ============================================================
-    # CASO MIN: turno del rival
-    # ============================================================
+    # CASO MIN
+
     else:
         best_score = float("inf")
         best_action = None

@@ -1,15 +1,10 @@
 from __future__ import annotations
-from typing import TypeVar, Optional, Tuple
+from typing import Optional
 from dataclasses import dataclass
 import random
 import time
 
-from generic.game_state import GameState
-from generic.forward_model import ForwardModel
-from generic.game_action import GameAction
-
-S = TypeVar("S", bound=GameState)
-A = TypeVar("A", bound=GameAction)
+from generic.forward_model import ForwardModel, S, A
 
 
 @dataclass
@@ -20,7 +15,7 @@ class SearchStats:
     elapsed_time: float = 0.0
 
 
-def evaluate_terminal(state: GameState, ai_player: int, depth: int) -> int:
+def evaluate_terminal(state: S, ai_player: int, depth: int) -> int:
     if state.winner is None:
         return 0
     if state.winner == ai_player:
@@ -34,7 +29,8 @@ def minimax(
     ai_player: int,
     depth: int = 0,
     stats: Optional[SearchStats] = None
-) -> Tuple[int, Optional[A]]:
+) -> tuple[int, Optional[A]]:
+
     if stats is not None:
         stats.nodes_visited += 1
         if depth > stats.max_depth:
@@ -49,47 +45,69 @@ def minimax(
 
     is_ai_turn = (state.current_player == ai_player)
 
+    # CASO MAX
+
     if is_ai_turn:
-        best_score = -10**9
+        best_score = float("-inf")
         best_action = None
 
         for action in actions:
             next_state = state.clone()
             model.advance(next_state, action)
 
-            score, _ = minimax(next_state, model, ai_player, depth + 1, stats)
+            score, _ = minimax(
+                next_state,
+                model,
+                ai_player,
+                depth + 1,
+                stats
+            )
 
             if score > best_score:
                 best_score = score
                 best_action = action
 
-        return best_score, best_action
+        return int(best_score), best_action
+    
+    # CASO MIN (RIVAL)
 
     else:
-        best_score = 10**9
+        best_score = float("inf")
         best_action = None
 
         for action in actions:
             next_state = state.clone()
             model.advance(next_state, action)
 
-            score, _ = minimax(next_state, model, ai_player, depth + 1, stats)
+            score, _ = minimax(
+                next_state,
+                model,
+                ai_player,
+                depth + 1,
+                stats
+            )
 
             if score < best_score:
                 best_score = score
                 best_action = action
 
-        return best_score, best_action
+        return int(best_score), best_action
 
 
-def choose_ai_move(state: S, model: ForwardModel[S, A], ai_player: int) -> Tuple[A, SearchStats]:
+def choose_ai_move(
+    state: S,
+    model: ForwardModel[S, A],
+    ai_player: int
+) -> tuple[A, SearchStats]:
+
     stats = SearchStats()
     start_time = time.perf_counter()
 
     _, action = minimax(state, model, ai_player, 0, stats)
 
     if action is None:
-        action = random.choice(model.compute_available_actions(state))
+        actions = model.compute_available_actions(state)
+        action = random.choice(actions)
 
     stats.elapsed_time = time.perf_counter() - start_time
 

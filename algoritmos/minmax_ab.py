@@ -47,9 +47,8 @@ def alpha_beta(
 
     is_ai_turn = (state.current_player == ai_player)
 
-    # ============================================================
-    # CASO MAX: turno de la IA
-    # ============================================================
+    # CASO MAX
+
     if is_ai_turn:
         best_score = float("-inf")
         best_action = None
@@ -72,11 +71,9 @@ def alpha_beta(
                 best_score = score
                 best_action = action
 
-            # CAMBIO INTRODUCIDO:
             # Actualizamos alpha con el mejor valor visto por MAX
             alpha = max(alpha, best_score)
 
-            # CAMBIO INTRODUCIDO:
             # Si alpha >= beta, esta rama ya no interesa
             if alpha >= beta:
                 if stats is not None:
@@ -85,9 +82,8 @@ def alpha_beta(
 
         return int(best_score), best_action
 
-    # ============================================================
-    # CASO MIN: turno del rival
-    # ============================================================
+    # CASO MIN
+
     else:
         best_score = float("inf")
         best_action = None
@@ -110,11 +106,9 @@ def alpha_beta(
                 best_score = score
                 best_action = action
 
-            # CAMBIO INTRODUCIDO:
             # Actualizamos beta con el mejor valor visto por MIN
             beta = min(beta, best_score)
 
-            # CAMBIO INTRODUCIDO:
             # Si alpha >= beta, esta rama ya no interesa
             if alpha >= beta:
                 if stats is not None:

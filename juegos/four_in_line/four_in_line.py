@@ -1,29 +1,25 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from generic.game_state import GameState
-from generic.game_action import GameAction
-from generic.forward_model import ForwardModel
+from generic.forward_model import ForwardModel, GameState, GameAction
 
-
-# ============================================================
-# 1. Estado del juego (4 en raya)
-# ============================================================
+# 1. Estado del juego
 
 @dataclass
 class ConnectFourGameState(GameState):
-    width: int = 7   # columnas
-    height: int = 6  # filas
-    board: list[int] = None  # 0 = vacío, 1 = jugador1, 2 = jugador2
+    width: int = 7
+    height: int = 6
+    board: Optional[list[int]] = None   # 0 = vacío, 1 = jugador 1, 2 = jugador 2
     current_player: int = 1
     is_terminal: bool = False
-    winner: Optional[int] = None  # 1, 2, o None (empate)
+    winner: Optional[int] = None        # 1, 2 o None si es empate
 
     def __post_init__(self):
         if self.board is None:
             self.board = [0] * (self.width * self.height)
 
-    def clone(self):
+    def clone(self) -> "ConnectFourGameState":
         return ConnectFourGameState(
             width=self.width,
             height=self.height,
@@ -34,26 +30,19 @@ class ConnectFourGameState(GameState):
         )
 
     def get(self, x: int, y: int) -> int:
-        # x: 0..width-1, y: 0..height-1 (0 es arriba)
         return self.board[y * self.width + x]
 
-    def set(self, x: int, y: int, value: int):
+    def set(self, x: int, y: int, value: int) -> None:
         self.board[y * self.width + x] = value
 
-
-# ============================================================
-# 2. Acción (tirar ficha en una columna)
-# ============================================================
+# 2. Acción
 
 @dataclass
 class DropPieceAction(GameAction):
     column: int
     player: int
 
-
-# ============================================================
-# 3. Forward Model
-# ============================================================
+# 3. Forward model
 
 class ConnectFourForwardModel(ForwardModel[ConnectFourGameState, DropPieceAction]):
     WIN_LEN = 4
@@ -62,28 +51,29 @@ class ConnectFourForwardModel(ForwardModel[ConnectFourGameState, DropPieceAction
         if state.is_terminal:
             return []
 
-        actions = []
+        actions: list[DropPieceAction] = []
         for col in range(state.width):
-            # si la celda superior está vacía, la columna acepta ficha
+            # Si la celda superior está vacía, se puede jugar en esa columna
             if state.get(col, 0) == 0:
                 actions.append(DropPieceAction(col, state.current_player))
+
         return actions
 
-    def advance(self, state: ConnectFourGameState, action: DropPieceAction):
+    def advance(self, state: ConnectFourGameState, action: DropPieceAction) -> None:
         if state.is_terminal:
             return
 
         col = action.column
 
-        # validar columna (por seguridad)
+        # Validación de columna
         if not (0 <= col < state.width):
             return
 
-        # si la columna está llena, no hacemos nada (en un juego real lanzarías excepción)
+        # Si la columna está llena, no hacemos nada
         if state.get(col, 0) != 0:
             return
 
-        # gravedad: colocar en la fila más baja libre
+        # Colocar ficha en la fila más baja libre
         placed_y = None
         for y in range(state.height - 1, -1, -1):
             if state.get(col, y) == 0:
@@ -91,23 +81,22 @@ class ConnectFourForwardModel(ForwardModel[ConnectFourGameState, DropPieceAction
                 placed_y = y
                 break
 
-        # si por alguna razón no se colocó, salir
         if placed_y is None:
             return
 
-        # comprobar victoria desde la última ficha (más eficiente)
+        # Comprobar victoria
         if self.check_win_from_cell(state, action.player, col, placed_y):
             state.is_terminal = True
             state.winner = action.player
             return
 
-        # empate: tablero lleno (no hay 0s)
-        if all(v != 0 for v in state.board):
+        # Empate
+        if all(value != 0 for value in state.board):
             state.is_terminal = True
             state.winner = None
             return
 
-        # cambiar turno
+        # Cambiar turno
         state.current_player = 1 if state.current_player == 2 else 2
 
     def evaluate_terminal(self, state: ConnectFourGameState, ai_player: int, depth: int) -> int:
@@ -120,43 +109,34 @@ class ConnectFourForwardModel(ForwardModel[ConnectFourGameState, DropPieceAction
         return -100000 + depth
 
     def evaluate_heuristic(self, state: ConnectFourGameState, ai_player: int) -> int:
-        """
-        Heurística para estados no terminales.
-
-        Idea:
-        - premiar control del centro
-        - premiar 2 y 3 en línea de la IA
-        - penalizar 2 y 3 en línea del rival
-        - castigar bastante si el rival tiene una amenaza fuerte de 3+1 hueco
-        """
         opponent = 1 if ai_player == 2 else 2
         score = 0
 
-        # Bonus por controlar la columna central
+        # Bonus por controlar el centro
         center_col = state.width // 2
         center_values = [state.get(center_col, y) for y in range(state.height)]
         score += center_values.count(ai_player) * 6
         score -= center_values.count(opponent) * 6
 
-        # Evaluar todas las ventanas horizontales de longitud 4
+        # Horizontales
         for y in range(state.height):
             for x in range(state.width - 3):
                 window = [state.get(x + i, y) for i in range(4)]
                 score += self.evaluate_window(window, ai_player, opponent)
 
-        # Evaluar todas las ventanas verticales de longitud 4
+        # Verticales
         for x in range(state.width):
             for y in range(state.height - 3):
                 window = [state.get(x, y + i) for i in range(4)]
                 score += self.evaluate_window(window, ai_player, opponent)
 
-        # Evaluar diagonales ↘
+        # Diagonales pabajo
         for x in range(state.width - 3):
             for y in range(state.height - 3):
                 window = [state.get(x + i, y + i) for i in range(4)]
                 score += self.evaluate_window(window, ai_player, opponent)
 
-        # Evaluar diagonales ↗
+        # Diagonales parriba
         for x in range(state.width - 3):
             for y in range(3, state.height):
                 window = [state.get(x + i, y - i) for i in range(4)]
@@ -165,9 +145,6 @@ class ConnectFourForwardModel(ForwardModel[ConnectFourGameState, DropPieceAction
         return score
 
     def evaluate_window(self, window: list[int], ai_player: int, opponent: int) -> int:
-        """
-        Puntúa una ventana de 4 casillas.
-        """
         score = 0
 
         ai_count = window.count(ai_player)
@@ -192,26 +169,31 @@ class ConnectFourForwardModel(ForwardModel[ConnectFourGameState, DropPieceAction
 
         return score
 
-    def check_win_from_cell(self, state: ConnectFourGameState, player: int, x: int, y: int) -> bool:
-        # Cuenta consecutivas en ambas direcciones para cada vector
+    def check_win_from_cell(
+        self,
+        state: ConnectFourGameState,
+        player: int,
+        x: int,
+        y: int
+    ) -> bool:
         directions = [
             (1, 0),   # horizontal
             (0, 1),   # vertical
-            (1, 1),   # diagonal ↘
-            (1, -1),  # diagonal ↗
+            (1, 1),   # diagonal pabajo
+            (1, -1),  # diagonal parriba
         ]
 
         for dx, dy in directions:
-            count = 1  # incluye (x,y)
+            count = 1
 
-            # hacia +dx, +dy
+            # Hacia delante
             nx, ny = x + dx, y + dy
             while 0 <= nx < state.width and 0 <= ny < state.height and state.get(nx, ny) == player:
                 count += 1
                 nx += dx
                 ny += dy
 
-            # hacia -dx, -dy
+            # Hacia atrás
             nx, ny = x - dx, y - dy
             while 0 <= nx < state.width and 0 <= ny < state.height and state.get(nx, ny) == player:
                 count += 1
@@ -223,29 +205,24 @@ class ConnectFourForwardModel(ForwardModel[ConnectFourGameState, DropPieceAction
 
         return False
 
-
-# ============================================================
 # 4. Utilidades de consola
-# ============================================================
 
-def print_board(state: ConnectFourGameState):
+def print_board(state: ConnectFourGameState) -> None:
     symbols = {0: ".", 1: "X", 2: "O"}
 
     print()
-
     for y in range(state.height):
         row = [symbols[state.get(x, y)] for x in range(state.width)]
         print(f"{y} | " + " ".join(row))
 
-    # índice de columnas para jugar
     print("    " + " ".join(str(i) for i in range(state.width)))
     print()
 
 
-def read_human_move(state: ConnectFourGameState):
+def read_human_move(state: ConnectFourGameState) -> int:
     while True:
         try:
-            print("Enter move as: column  (example: 3)")
+            print("Enter move as: column (example: 3)")
             col = int(input("Move (column): ").strip())
         except ValueError:
             print("Invalid format. Example: 3")
@@ -261,13 +238,9 @@ def read_human_move(state: ConnectFourGameState):
 
         return col
 
+# 5. Bucle de juego
 
-# ============================================================
-# 5. GAME LOOP
-# ============================================================
-
-def play_human_vs_ai(choose_move_fn, algorithm_name: str):
-
+def play_human_vs_ai(choose_move_fn, algorithm_name: str) -> None:
     state = ConnectFourGameState(width=7, height=6)
     model = ConnectFourForwardModel()
 
@@ -284,15 +257,10 @@ def play_human_vs_ai(choose_move_fn, algorithm_name: str):
     print_board(state)
 
     while not state.is_terminal:
-
         if state.current_player == human:
-
             col = read_human_move(state)
-
             model.advance(state, DropPieceAction(col, human))
-
         else:
-
             action, stats = choose_move_fn(state, model, ai)
 
             total_nodes_visited += stats.nodes_visited
@@ -302,17 +270,14 @@ def play_human_vs_ai(choose_move_fn, algorithm_name: str):
             ai_turns += 1
 
             model.advance(state, action)
-
             print("AI plays column:", action.column)
 
         print_board(state)
 
     if state.winner is None:
         print("Draw")
-
     elif state.winner == human:
         print("You win")
-
     else:
         print("AI wins")
 

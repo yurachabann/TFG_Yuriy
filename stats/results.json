@@ -1,0 +1,35 @@
+{
+    "game": "3 en raya",
+    "players": {
+        "1": "Humano",
+        "2": "Minimax"
+    },
+    "summary": {
+        "games": 1,
+        "p1_wins": 0,
+        "p2_wins": 1,
+        "draws": 0
+    },
+    "search_stats": {
+        "1": {
+            "nodes_visited": 0,
+            "cutoffs": 0,
+            "elapsed_time": 0.0,
+            "max_depth": 0,
+            "ai_turns": 0
+        },
+        "2": {
+            "nodes_visited": 60670,
+            "cutoffs": 0,
+            "elapsed_time": 0.36350309999999997,
+            "max_depth": 8,
+            "ai_turns": 3
+        }
+    },
+    "matches": [
+        {
+            "match_number": 1,
+            "winner": 2
+        }
+    ]
+}

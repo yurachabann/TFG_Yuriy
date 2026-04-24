@@ -7,6 +7,7 @@ from juegos.four_in_line.game import Connect4Game
 from algoritmos.minmax import choose_ai_move
 from algoritmos.minmax_ab import choose_ai_move_alpha_beta
 from algoritmos.minmax_ab_depth_limit import choose_ai_move_alpha_beta_depth_limit
+from algoritmos.mcts import choose_ai_move_mcts
 
 
 # =========================
@@ -44,6 +45,11 @@ ALL_ALGORITHMS = {
         "fn": choose_ai_move_alpha_beta_depth_limit,
         "params": {"max_depth": 7}
     },
+    "5": {
+        "name": "MCTS (1000 iter)",
+        "fn": choose_ai_move_mcts,
+        "params": {"iterations": 1000}
+    }
 }
 
 

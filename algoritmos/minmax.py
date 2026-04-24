@@ -108,7 +108,7 @@ def choose_ai_move(
     if action is None:
         actions = model.compute_available_actions(state)
         action = random.choice(actions)
-
+  
     stats.elapsed_time = time.perf_counter() - start_time
 
     return action, stats

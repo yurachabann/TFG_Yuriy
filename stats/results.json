@@ -1,35 +1,35 @@
 {
-    "game": "3 en raya",
+    "game": "Damas",
     "players": {
-        "1": "Humano",
-        "2": "Minimax"
+        "1": "Alpha-Beta Depth Limit 7",
+        "2": "MCTS (1000 iter)"
     },
     "summary": {
         "games": 1,
-        "p1_wins": 0,
-        "p2_wins": 1,
+        "p1_wins": 1,
+        "p2_wins": 0,
         "draws": 0
     },
     "search_stats": {
         "1": {
-            "nodes_visited": 0,
-            "cutoffs": 0,
-            "elapsed_time": 0.0,
-            "max_depth": 0,
-            "ai_turns": 0
+            "nodes_visited": 312871,
+            "cutoffs": 55058,
+            "elapsed_time": 57.053982999999974,
+            "max_depth": 7,
+            "ai_turns": 30
         },
         "2": {
-            "nodes_visited": 60670,
+            "nodes_visited": 26085,
             "cutoffs": 0,
-            "elapsed_time": 0.36350309999999997,
-            "max_depth": 8,
-            "ai_turns": 3
+            "elapsed_time": 201.65577829999995,
+            "max_depth": 312,
+            "ai_turns": 29
         }
     },
     "matches": [
         {
             "match_number": 1,
-            "winner": 2
+            "winner": 1
         }
     ]
 }

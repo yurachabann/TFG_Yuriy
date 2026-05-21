@@ -8,6 +8,8 @@ from algoritmos.minmax import choose_ai_move
 from algoritmos.minmax_ab import choose_ai_move_alpha_beta
 from algoritmos.minmax_ab_depth_limit import choose_ai_move_alpha_beta_depth_limit
 from algoritmos.mcts import choose_ai_move_mcts
+from algoritmos.mcts_max_depth import choose_ai_move_mcts_max_depth
+from juegos.checkers.game import CheckersGame
 
 
 # =========================
@@ -17,6 +19,7 @@ from algoritmos.mcts import choose_ai_move_mcts
 GAMES = {
     "1": TicTacToeGame,
     "2": Connect4Game,
+    "3": CheckersGame
 }
 
 
@@ -49,6 +52,11 @@ ALL_ALGORITHMS = {
         "name": "MCTS (1000 iter)",
         "fn": choose_ai_move_mcts,
         "params": {"iterations": 1000}
+    },
+    "6": {
+        "name": "MCTS con max depth (1000 iter)",
+        "fn": choose_ai_move_mcts_max_depth,
+        "params": {"iterations": 1000, "max_rollout_depth": 20}
     }
 }
 
@@ -66,6 +74,7 @@ def choose_game():
         print("\n=== Selecciona juego ===")
         print("1. 3 en raya")
         print("2. 4 en raya")
+        print("3. Las damas")
 
         option = input("Opción: ").strip()
 

@@ -162,6 +162,8 @@ def rollout(
 
     while not rollout_state.is_terminal:
         if max_rollout_depth is not None and depth >= max_rollout_depth:
+            if stats is not None:
+                stats.cutoffs += 1
             return heuristic_reward(rollout_state, model, ai_player)
 
         actions = model.compute_available_actions(rollout_state)

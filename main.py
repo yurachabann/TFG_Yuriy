@@ -1,15 +1,17 @@
 from core.match_runner import MatchRunner
 from core.players import HumanPlayer, AIPlayer
 
+from generic.tournament_runner import TournamentRunner
+
 from juegos.tictactoe.game import TicTacToeGame
 from juegos.four_in_line.game import Connect4Game
+from juegos.checkers.game import CheckersGame
 
 from algoritmos.minmax import choose_ai_move
 from algoritmos.minmax_ab import choose_ai_move_alpha_beta
 from algoritmos.minmax_ab_depth_limit import choose_ai_move_alpha_beta_depth_limit
 from algoritmos.mcts import choose_ai_move_mcts
 from algoritmos.mcts_max_depth import choose_ai_move_mcts_max_depth
-from juegos.checkers.game import CheckersGame
 
 
 # =========================
@@ -26,7 +28,7 @@ GAMES = {
 # =========================
 # TODOS LOS ALGORITMOS
 # =========================
-# Se muestran siempre todos, sin distinguir por juego.
+
 ALL_ALGORITHMS = {
     "1": {
         "name": "Minimax",
@@ -64,6 +66,21 @@ ALL_ALGORITHMS = {
 # =========================
 # MENÚS
 # =========================
+
+def choose_main_option():
+    while True:
+        print("\n=== MENÚ PRINCIPAL ===")
+        print("1. Ejecutar partida normal")
+        print("2. Ejecutar todas las IAs contra todas y guardar results.json")
+        print("0. Salir")
+
+        option = input("Opción: ").strip()
+
+        if option in ("0", "1", "2"):
+            return option
+
+        print("Opción no válida")
+
 
 def choose_game():
     """
@@ -151,6 +168,30 @@ def ask_stats_file():
     return path
 
 
+def ask_float(text, default):
+    raw = input(f"{text} [{default}]: ").strip()
+
+    if raw == "":
+        return default
+
+    try:
+        value = float(raw)
+        if value <= 0:
+            return default
+        return value
+    except ValueError:
+        return default
+
+
+def ask_tournament_file():
+    path = input("Ruta del JSON final [stats/results.json]: ").strip()
+
+    if path == "":
+        path = "stats/results.json"
+
+    return path
+
+
 # =========================
 # CREACIÓN DE JUGADORES
 # =========================
@@ -197,11 +238,69 @@ def build_ai_vs_ai_players():
 
 
 # =========================
+# TORNEO AUTOMÁTICO
+# =========================
+
+def run_full_ai_tournament():
+    """
+    Ejecuta todos los juegos y todas las combinaciones posibles de IAs.
+    Cada IA juega contra todas las demás.
+
+    También se ejecutan ambos órdenes:
+    - IA A como jugador 1 contra IA B como jugador 2
+    - IA B como jugador 1 contra IA A como jugador 2
+    """
+    results_file = ask_tournament_file()
+
+    move_timeout_seconds = ask_float(
+        "Tiempo máximo por movimiento en segundos",
+        default=5.0
+    )
+
+    match_timeout_seconds = ask_float(
+        "Tiempo máximo por partida en segundos",
+        default=120.0
+    )
+
+    runner = TournamentRunner(
+        game_registry=GAMES,
+        algorithm_registry=ALL_ALGORITHMS,
+        results_file=results_file,
+        move_timeout_seconds=move_timeout_seconds,
+        match_timeout_seconds=match_timeout_seconds,
+        play_both_orders=True
+    )
+
+    runner.run_all()
+
+
+# =========================
 # MAIN LOOP
 # =========================
 
 def main():
     while True:
+        main_option = choose_main_option()
+
+        if main_option == "0":
+            print("Saliendo...")
+            break
+
+        # ---------------------------------
+        # TORNEO AUTOMÁTICO IA VS IA
+        # ---------------------------------
+        if main_option == "2":
+            run_full_ai_tournament()
+
+            if not ask_yes_no("¿Quieres volver al menú?", default=True):
+                print("Saliendo...")
+                break
+
+            continue
+
+        # ---------------------------------
+        # PARTIDA NORMAL
+        # ---------------------------------
         game = choose_game()
         mode = choose_mode()
 

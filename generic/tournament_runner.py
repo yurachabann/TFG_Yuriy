@@ -1,0 +1,702 @@
+from __future__ import annotations
+
+import concurrent.futures
+import contextlib
+import io
+import itertools
+import json
+import multiprocessing
+import time
+import traceback
+from pathlib import Path
+from typing import Any
+
+from core.match import Match
+from core.stats_manager import StatsManager
+from core.players import AIPlayer
+
+
+# ============================================================
+# EXCEPCIONES PERSONALIZADAS
+# ============================================================
+
+class AlgorithmTimeout(Exception):
+    """
+    Excepción propia para indicar que un algoritmo ha tardado demasiado
+    en devolver una acción.
+
+    Se usa para marcar una partida como inválida cuando una IA no responde
+    dentro del tiempo máximo permitido.
+    """
+
+    def __init__(self, algorithm_name: str, player_id: int, seconds: float):
+        # Nombre del algoritmo que ha superado el tiempo máximo.
+        self.algorithm_name = algorithm_name
+
+        # Jugador que estaba usando ese algoritmo.
+        self.player_id = player_id
+
+        # Tiempo máximo permitido.
+        self.seconds = seconds
+
+        # Mensaje descriptivo de la excepción.
+        super().__init__(
+            f"El algoritmo '{algorithm_name}' del jugador {player_id} "
+            f"ha superado el límite de {seconds} segundos."
+        )
+
+
+class AlgorithmExecutionError(Exception):
+    """
+    Excepción propia para indicar que un algoritmo ha fallado durante su ejecución.
+
+    No representa un timeout, sino un error interno del algoritmo:
+    excepción de Python, acción inválida, error de heurística, etc.
+    """
+
+    def __init__(self, algorithm_name: str, player_id: int, original_error: Exception):
+        # Nombre del algoritmo que ha producido el error.
+        self.algorithm_name = algorithm_name
+
+        # Jugador que estaba usando ese algoritmo.
+        self.player_id = player_id
+
+        # Error original producido por Python.
+        self.original_error = original_error
+
+        # Mensaje descriptivo de la excepción.
+        super().__init__(
+            f"El algoritmo '{algorithm_name}' del jugador {player_id} "
+            f"ha producido un error: {original_error}"
+        )
+
+
+# ============================================================
+# IA CON TIMEOUT POR MOVIMIENTO
+# ============================================================
+
+class TimedAIPlayer(AIPlayer):
+    """
+    Variante de AIPlayer que añade un límite de tiempo por movimiento.
+
+    La clase AIPlayer original llama al algoritmo y espera hasta que termine.
+    Esta clase hace lo mismo, pero ejecutando el algoritmo en un hilo separado
+    para poder controlar cuánto tarda en devolver una acción.
+
+    Se usa únicamente dentro del TournamentRunner.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        player_id: int,
+        algorithm_fn,
+        algorithm_params: dict | None = None,
+        timeout_seconds: float = 5.0
+    ):
+        # Inicializamos la parte común de AIPlayer:
+        # nombre, id del jugador, función del algoritmo y parámetros.
+        super().__init__(
+            name=name,
+            player_id=player_id,
+            algorithm_fn=algorithm_fn,
+            algorithm_params=algorithm_params
+        )
+
+        # Tiempo máximo que este jugador IA puede tardar en elegir una acción.
+        self.timeout_seconds = timeout_seconds
+
+    def choose_action(self, state, game):
+        """
+        Devuelve la acción elegida por la IA y sus estadísticas.
+
+        La diferencia respecto a AIPlayer es que aquí el algoritmo se ejecuta
+        con un límite de tiempo.
+        """
+
+        # Creamos el modelo del juego.
+        # Es lo mismo que hace AIPlayer: cada algoritmo recibe state, model y player_id.
+        model = game.create_model()
+
+        # Creamos un executor con un único hilo.
+        # Ese hilo será el encargado de ejecutar el algoritmo.
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+        # Lanzamos la función del algoritmo en el hilo.
+        # La convención de tus algoritmos es:
+        # algorithm_fn(state, model, ai_player, **params) -> (action, stats)
+        future = executor.submit(
+            self.algorithm_fn,
+            state,
+            model,
+            self.player_id,
+            **self.algorithm_params
+        )
+
+        try:
+            # Esperamos el resultado solo durante timeout_seconds.
+            # Si el algoritmo termina a tiempo, result será (action, stats).
+            result = future.result(timeout=self.timeout_seconds)
+
+            # Cerramos correctamente el executor.
+            executor.shutdown(wait=True, cancel_futures=True)
+
+            return result
+
+        except concurrent.futures.TimeoutError:
+            # Si el algoritmo tarda demasiado, no esperamos más.
+            executor.shutdown(wait=False, cancel_futures=True)
+
+            # Lanzamos una excepción propia para que el torneo pueda marcar
+            # esta partida como inválida.
+            raise AlgorithmTimeout(
+                algorithm_name=self.name,
+                player_id=self.player_id,
+                seconds=self.timeout_seconds
+            )
+
+        except Exception as exc:
+            # Si el algoritmo falla por cualquier otro motivo,
+            # lo envolvemos en una excepción más clara.
+            executor.shutdown(wait=False, cancel_futures=True)
+
+            raise AlgorithmExecutionError(
+                algorithm_name=self.name,
+                player_id=self.player_id,
+                original_error=exc
+            )
+
+
+# ============================================================
+# FUNCIONES AUXILIARES PARA GUARDAR DATOS EN JSON
+# ============================================================
+
+def _safe_params(params: dict | None) -> dict:
+    """
+    Devuelve una copia de los parámetros del algoritmo que pueda guardarse en JSON.
+
+    Algunos valores de Python no se pueden guardar directamente en JSON.
+    Por eso, si un parámetro no es serializable, se convierte a texto.
+    """
+
+    if params is None:
+        return {}
+
+    result = {}
+
+    for key, value in params.items():
+        try:
+            # Comprobamos si el valor se puede convertir a JSON.
+            json.dumps(value)
+
+            # Si se puede, lo guardamos tal cual.
+            result[key] = value
+
+        except TypeError:
+            # Si no se puede, lo convertimos a string.
+            result[key] = str(value)
+
+    return result
+
+
+def _public_algorithm_config(key: str, config: dict) -> dict:
+    """
+    Devuelve la información pública y serializable de un algoritmo.
+
+    En ALL_ALGORITHMS cada entrada contiene:
+    - name
+    - fn
+    - params
+
+    Pero fn es una función de Python, y no se puede guardar en JSON.
+    Por eso aquí solo guardamos la clave, el nombre y los parámetros.
+    """
+
+    return {
+        "key": key,
+        "name": config["name"],
+        "params": _safe_params(config.get("params", {}))
+    }
+
+
+# ============================================================
+# WORKER DE UNA PARTIDA
+# ============================================================
+
+def _run_single_match_worker(
+    game_key: str,
+    game_cls,
+    alg1_key: str,
+    alg1_config: dict,
+    alg2_key: str,
+    alg2_config: dict,
+    move_timeout_seconds: float,
+    output_queue
+):
+    """
+    Ejecuta una única partida dentro de un proceso separado.
+
+    Esta función no se llama directamente desde main.
+    La usa TournamentRunner al crear un multiprocessing.Process.
+
+    La razón de ejecutarla en otro proceso es que, si la partida se queda bloqueada,
+    el proceso completo se puede terminar desde fuera.
+    """
+
+    # Guardamos el instante inicial para medir cuánto tarda la partida.
+    started_at = time.perf_counter()
+
+    try:
+        # Creamos una instancia del juego actual.
+        game = game_cls()
+
+        # Creamos el jugador 1 con timeout por movimiento.
+        player1 = TimedAIPlayer(
+            name=alg1_config["name"],
+            player_id=1,
+            algorithm_fn=alg1_config["fn"],
+            algorithm_params=alg1_config.get("params", {}),
+            timeout_seconds=move_timeout_seconds
+        )
+
+        # Creamos el jugador 2 con timeout por movimiento.
+        player2 = TimedAIPlayer(
+            name=alg2_config["name"],
+            player_id=2,
+            algorithm_fn=alg2_config["fn"],
+            algorithm_params=alg2_config.get("params", {}),
+            timeout_seconds=move_timeout_seconds
+        )
+
+        players = [player1, player2]
+
+        # Creamos un StatsManager para esta partida.
+        # No se va a llamar a save(), porque el torneo guarda todo al final.
+        stats_manager = StatsManager(
+            file_path="__not_saved_here__.json",
+            game_name=game.name,
+            players=players
+        )
+
+        # Redirigimos la salida estándar para ocultar los prints de Match.
+        # Así el torneo no imprime todos los tableros ni todos los resultados.
+        with contextlib.redirect_stdout(io.StringIO()):
+            match = Match(
+                game=game,
+                players=players,
+                show_board=False,
+                stats_manager=stats_manager
+            )
+
+            # Ejecutamos la partida.
+            final_state = match.run(match_number=1)
+
+        # Calculamos el tiempo total de esta partida.
+        elapsed_time = time.perf_counter() - started_at
+
+        # Si todo ha ido bien, enviamos el resultado al proceso principal.
+        output_queue.put({
+            "status": "valid",
+            "valid": True,
+            "game": {
+                "key": game_key,
+                "name": game.name
+            },
+            "player1": _public_algorithm_config(alg1_key, alg1_config),
+            "player2": _public_algorithm_config(alg2_key, alg2_config),
+            "winner": final_state.winner,
+            "elapsed_time": elapsed_time,
+            "stats": stats_manager.data
+        })
+
+    except AlgorithmTimeout as exc:
+        # Si una IA ha superado el tiempo máximo por movimiento,
+        # la partida se marca como inválida.
+        elapsed_time = time.perf_counter() - started_at
+
+        output_queue.put({
+            "status": "invalid_algorithm_for_game",
+            "valid": False,
+            "game": {
+                "key": game_key,
+                "name": getattr(game_cls(), "name", game_cls.__name__)
+            },
+            "player1": _public_algorithm_config(alg1_key, alg1_config),
+            "player2": _public_algorithm_config(alg2_key, alg2_config),
+            "invalid_algorithm": exc.algorithm_name,
+            "invalid_player_id": exc.player_id,
+            "reason": str(exc),
+            "elapsed_time": elapsed_time
+        })
+
+    except AlgorithmExecutionError as exc:
+        # Si una IA ha producido un error interno,
+        # también se marca como inválida para esa partida.
+        elapsed_time = time.perf_counter() - started_at
+
+        output_queue.put({
+            "status": "invalid_algorithm_for_game",
+            "valid": False,
+            "game": {
+                "key": game_key,
+                "name": getattr(game_cls(), "name", game_cls.__name__)
+            },
+            "player1": _public_algorithm_config(alg1_key, alg1_config),
+            "player2": _public_algorithm_config(alg2_key, alg2_config),
+            "invalid_algorithm": exc.algorithm_name,
+            "invalid_player_id": exc.player_id,
+            "reason": str(exc),
+            "elapsed_time": elapsed_time
+        })
+
+    except Exception as exc:
+        # Cualquier otro error no esperado se guarda como error general.
+        elapsed_time = time.perf_counter() - started_at
+
+        output_queue.put({
+            "status": "error",
+            "valid": False,
+            "game": {
+                "key": game_key,
+                "name": getattr(game_cls(), "name", game_cls.__name__)
+            },
+            "player1": _public_algorithm_config(alg1_key, alg1_config),
+            "player2": _public_algorithm_config(alg2_key, alg2_config),
+            "reason": str(exc),
+            "traceback": traceback.format_exc(),
+            "elapsed_time": elapsed_time
+        })
+
+
+# ============================================================
+# TOURNAMENT RUNNER
+# ============================================================
+
+class TournamentRunner:
+    """
+    Ejecuta automáticamente todas las combinaciones posibles de IAs
+    para todos los juegos registrados.
+
+    Diferencia con MatchRunner:
+    - MatchRunner ejecuta una configuración concreta.
+    - TournamentRunner ejecuta todas las combinaciones automáticamente.
+
+    Además, TournamentRunner no guarda el JSON partida por partida.
+    Acumula todo en memoria y guarda un único fichero al final.
+    """
+
+    def __init__(
+        self,
+        game_registry: dict[str, Any],
+        algorithm_registry: dict[str, dict],
+        results_file: str = "stats/results.json",
+        move_timeout_seconds: float = 5.0,
+        match_timeout_seconds: float = 120.0,
+        play_both_orders: bool = True
+    ):
+        # Diccionario de juegos disponibles.
+        # Ejemplo: {"1": TicTacToeGame, "2": Connect4Game, ...}
+        self.game_registry = game_registry
+
+        # Diccionario de algoritmos disponibles.
+        # Ejemplo: {"1": {"name": "Minimax", "fn": ..., "params": {...}}, ...}
+        self.algorithm_registry = algorithm_registry
+
+        # Fichero final donde se guardarán todos los resultados.
+        self.results_file = results_file
+
+        # Tiempo máximo que una IA puede tardar en elegir una acción.
+        self.move_timeout_seconds = move_timeout_seconds
+
+        # Tiempo máximo permitido para una partida completa.
+        self.match_timeout_seconds = match_timeout_seconds
+
+        # Si es True, se ejecutan ambos órdenes:
+        # A como jugador 1 contra B como jugador 2,
+        # y B como jugador 1 contra A como jugador 2.
+        self.play_both_orders = play_both_orders
+
+        # Estructura principal que se guardará al final en JSON.
+        self.results = {
+            "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "results_file": self.results_file,
+            "move_timeout_seconds": self.move_timeout_seconds,
+            "match_timeout_seconds": self.match_timeout_seconds,
+            "play_both_orders": self.play_both_orders,
+            "games": [],
+            "algorithms": [],
+            "summary": {
+                "total_matches": 0,
+                "valid_matches": 0,
+                "invalid_matches": 0,
+                "errors": 0
+            },
+            "matches": [],
+            "invalid_algorithms_by_game": {}
+        }
+
+    def run_all(self) -> dict:
+        """
+        Ejecuta el torneo completo.
+
+        Recorre:
+        - todos los juegos
+        - todas las parejas de algoritmos
+        - todas las partidas necesarias
+
+        Al final guarda todos los resultados en un único JSON.
+        """
+
+        # Guardamos en self.results la lista de juegos y algoritmos usados.
+        self._initialize_metadata()
+
+        # Convertimos los diccionarios a listas para poder recorrerlos cómodamente.
+        game_items = list(self.game_registry.items())
+        algorithm_items = list(self.algorithm_registry.items())
+
+        # Generamos las parejas de algoritmos.
+        if self.play_both_orders:
+            # Permutaciones: A vs B y B vs A son partidas distintas.
+            pairs = list(itertools.permutations(algorithm_items, 2))
+        else:
+            # Combinaciones: A vs B solo se juega una vez.
+            pairs = list(itertools.combinations(algorithm_items, 2))
+
+        # Número total de partidas previstas.
+        total = len(game_items) * len(pairs)
+
+        # Contador de progreso.
+        current = 0
+
+        print("\n=== TORNEO AUTOMÁTICO IA VS IA ===")
+        print(f"Juegos: {len(game_items)}")
+        print(f"Algoritmos: {len(algorithm_items)}")
+        print(f"Partidas a ejecutar: {total}")
+        print(f"Timeout por movimiento: {self.move_timeout_seconds} segundos")
+        print(f"Timeout por partida: {self.match_timeout_seconds} segundos")
+        print(f"Fichero de salida: {self.results_file}")
+
+        # Recorremos todos los juegos.
+        for game_key, game_cls in game_items:
+            game_name = game_cls().name
+            print(f"\n=== Juego: {game_name} ===")
+
+            # Para cada juego, recorremos todas las parejas de algoritmos.
+            for (alg1_key, alg1_config), (alg2_key, alg2_config) in pairs:
+                # Seguridad extra: evitamos algoritmo contra sí mismo.
+                if alg1_key == alg2_key:
+                    continue
+
+                current += 1
+
+                print(
+                    f"[{current}/{total}] "
+                    f"{game_name}: {alg1_config['name']} vs {alg2_config['name']}"
+                )
+
+                # Ejecutamos la partida con timeout de proceso.
+                match_result = self._run_match_with_process_timeout(
+                    game_key=game_key,
+                    game_cls=game_cls,
+                    alg1_key=alg1_key,
+                    alg1_config=alg1_config,
+                    alg2_key=alg2_key,
+                    alg2_config=alg2_config
+                )
+
+                # Guardamos el resultado en la estructura general.
+                self._record_match_result(match_result)
+
+        # Cuando todas las partidas han terminado, guardamos el JSON final.
+        self._save_results()
+
+        print("\n=== TORNEO FINALIZADO ===")
+        print("Partidas totales:", self.results["summary"]["total_matches"])
+        print("Partidas válidas:", self.results["summary"]["valid_matches"])
+        print("Partidas inválidas:", self.results["summary"]["invalid_matches"])
+        print("Errores:", self.results["summary"]["errors"])
+        print("Resultados guardados en:", self.results_file)
+
+        return self.results
+    
+    def _initialize_metadata(self) -> None:
+        """
+        Guarda en self.results la información general de los juegos
+        y algoritmos que se van a usar en el torneo.
+
+        Esto no ejecuta partidas. Solo prepara metadatos para que el JSON final
+        indique qué juegos y qué algoritmos participaron.
+        """
+
+        # Guardamos la lista de juegos registrados.
+        self.results["games"] = [
+            {
+                "key": key,
+                "name": game_cls().name
+            }
+            for key, game_cls in self.game_registry.items()
+        ]
+
+        # Guardamos la lista de algoritmos registrados.
+        # No se guarda la función Python, solo nombre, clave y parámetros.
+        self.results["algorithms"] = [
+            _public_algorithm_config(key, config)
+            for key, config in self.algorithm_registry.items()
+        ]
+
+    def _run_match_with_process_timeout(
+        self,
+        game_key: str,
+        game_cls,
+        alg1_key: str,
+        alg1_config: dict,
+        alg2_key: str,
+        alg2_config: dict
+    ) -> dict:
+        """
+        Ejecuta una partida en un proceso separado y controla el timeout total
+        de la partida.
+
+        Si la partida termina bien, recoge el resultado desde output_queue.
+        Si la partida se queda bloqueada, mata el proceso y devuelve un resultado
+        marcado como inválido.
+        """
+
+        # Cola usada para recibir el resultado desde el proceso hijo.
+        output_queue = multiprocessing.Queue()
+
+        # Creamos un proceso separado para ejecutar una única partida.
+        process = multiprocessing.Process(
+            target=_run_single_match_worker,
+            args=(
+                game_key,
+                game_cls,
+                alg1_key,
+                alg1_config,
+                alg2_key,
+                alg2_config,
+                self.move_timeout_seconds,
+                output_queue
+            )
+        )
+
+        # Medimos cuánto tarda esta partida.
+        started_at = time.perf_counter()
+
+        # Arrancamos el proceso hijo.
+        process.start()
+
+        # Esperamos como máximo match_timeout_seconds.
+        process.join(self.match_timeout_seconds)
+
+        # Si después del timeout el proceso sigue vivo, significa que la partida
+        # se ha quedado bloqueada o tarda demasiado.
+        if process.is_alive():
+            # Matamos el proceso completo.
+            process.terminate()
+            process.join()
+
+            elapsed_time = time.perf_counter() - started_at
+
+            return {
+                "status": "match_timeout",
+                "valid": False,
+                "game": {
+                    "key": game_key,
+                    "name": game_cls().name
+                },
+                "player1": _public_algorithm_config(alg1_key, alg1_config),
+                "player2": _public_algorithm_config(alg2_key, alg2_config),
+                "invalid_algorithm": "unknown",
+                "invalid_player_id": None,
+                "reason": (
+                    "La partida completa ha superado el límite de tiempo. "
+                    "No se puede determinar con seguridad qué algoritmo se quedó bloqueado."
+                ),
+                "elapsed_time": elapsed_time
+            }
+
+        # Si el proceso terminó, intentamos leer el resultado que dejó en la cola.
+        try:
+            return output_queue.get_nowait()
+
+        except Exception:
+            # Si el proceso terminó pero no dejó resultado, lo marcamos como error.
+            elapsed_time = time.perf_counter() - started_at
+
+            return {
+                "status": "error",
+                "valid": False,
+                "game": {
+                    "key": game_key,
+                    "name": game_cls().name
+                },
+                "player1": _public_algorithm_config(alg1_key, alg1_config),
+                "player2": _public_algorithm_config(alg2_key, alg2_config),
+                "reason": "El proceso terminó sin devolver resultado.",
+                "elapsed_time": elapsed_time
+            }
+
+    def _record_match_result(self, match_result: dict) -> None:
+        """
+        Añade el resultado de una partida a la estructura general del torneo.
+
+        También actualiza el resumen:
+        - total de partidas
+        - partidas válidas
+        - partidas inválidas
+        - errores
+        """
+
+        # Aumentamos el total de partidas ejecutadas.
+        self.results["summary"]["total_matches"] += 1
+
+        # Guardamos el resultado completo de la partida.
+        self.results["matches"].append(match_result)
+
+        status = match_result.get("status")
+
+        # Si la partida fue válida, aumentamos valid_matches.
+        if match_result.get("valid"):
+            self.results["summary"]["valid_matches"] += 1
+            return
+
+        # Si no fue válida, distinguimos entre error general e inválida por timeout/fallo.
+        if status == "error":
+            self.results["summary"]["errors"] += 1
+        else:
+            self.results["summary"]["invalid_matches"] += 1
+
+        # Si sabemos qué algoritmo falló, lo guardamos agrupado por juego.
+        game_name = match_result.get("game", {}).get("name", "unknown")
+        invalid_algorithm = match_result.get("invalid_algorithm")
+
+        if invalid_algorithm:
+            if game_name not in self.results["invalid_algorithms_by_game"]:
+                self.results["invalid_algorithms_by_game"][game_name] = []
+
+            entry = {
+                "algorithm": invalid_algorithm,
+                "reason": match_result.get("reason", "")
+            }
+
+            # Evitamos duplicados exactos.
+            if entry not in self.results["invalid_algorithms_by_game"][game_name]:
+                self.results["invalid_algorithms_by_game"][game_name].append(entry)
+
+    def _save_results(self) -> None:
+        """
+        Guarda todos los resultados acumulados en un único fichero JSON.
+
+        A diferencia de StatsManager.save(), esto se hace una sola vez,
+        al final del torneo completo.
+        """
+
+        path = Path(self.results_file)
+
+        # Creamos la carpeta si no existe.
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Guardamos todo el torneo en JSON.
+        with path.open("w", encoding="utf-8") as file:
+            json.dump(self.results, file, indent=4, ensure_ascii=False)

@@ -106,28 +106,16 @@ def terminal_reward(state: S, ai_player: int) -> float:
     return -1.0
 
 
-def heuristic_reward(state: S, model: ForwardModel[S, A], ai_player: int) -> float:
-    """
-    Recompensa aproximada cuando el rollout se corta por profundidad máxima.
-
-    Caso 1:
-        Si el modelo tiene evaluate_heuristic(state, ai_player),
-        se usa esa heurística y se normaliza a [-1, 1].
-
-    Caso 2:
-        Si no existe evaluate_heuristic, devuelve 0.0.
-        Así el MCTS sigue siendo genérico.
-
-    Esto permite que 4 en raya aproveche evaluate_heuristic,
-    pero que otros juegos sigan funcionando sin tener heurística.
-    """
-    if not hasattr(model, "evaluate_heuristic"):
+def heuristic_reward(
+    state: S,
+    ai_player: int,
+    heuristic
+) -> float:
+    if heuristic is None:
         return 0.0
 
-    score = model.evaluate_heuristic(state, ai_player)
+    score = heuristic.evaluate(state, ai_player)
 
-    # Normalización suave.
-    # Evita que una heurística grande rompa la escala del MCTS.
     return math.tanh(score / 100.0)
 
 
@@ -139,6 +127,7 @@ def rollout(
     state: S,
     model: ForwardModel[S, A],
     ai_player: int,
+    heuristic,
     stats: Optional[SearchStats] = None,
     start_depth: int = 0,
     max_rollout_depth: Optional[int] = None
@@ -164,7 +153,11 @@ def rollout(
         if max_rollout_depth is not None and depth >= max_rollout_depth:
             if stats is not None:
                 stats.cutoffs += 1
-            return heuristic_reward(rollout_state, model, ai_player)
+            return heuristic_reward(
+                state=rollout_state,
+                ai_player=ai_player,
+                heuristic=heuristic
+            )
 
         actions = model.compute_available_actions(rollout_state)
 
@@ -209,6 +202,7 @@ def mcts(
     state: S,
     model: ForwardModel[S, A],
     ai_player: int,
+    heuristic,
     iterations: int = 1000,
     exploration_weight: float = math.sqrt(2),
     max_rollout_depth: Optional[int] = None,
@@ -312,6 +306,7 @@ def mcts(
                 state=node.state,
                 model=model,
                 ai_player=ai_player,
+                heuristic=heuristic,
                 stats=stats,
                 start_depth=depth,
                 max_rollout_depth=max_rollout_depth
@@ -342,6 +337,7 @@ def choose_ai_move_mcts_max_depth(
     state: S,
     model: ForwardModel[S, A],
     ai_player: int,
+    heuristic,
     iterations: int = 1000,
     exploration_weight: float = math.sqrt(2),
     max_rollout_depth: Optional[int] = None
@@ -370,6 +366,7 @@ def choose_ai_move_mcts_max_depth(
         state=state,
         model=model,
         ai_player=ai_player,
+        heuristic=heuristic,
         iterations=iterations,
         exploration_weight=exploration_weight,
         max_rollout_depth=max_rollout_depth,

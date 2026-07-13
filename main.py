@@ -14,6 +14,9 @@ from algoritmos.mcts import choose_ai_move_mcts
 from algoritmos.mcts_max_depth import choose_ai_move_mcts_max_depth
 
 
+from heuristics.checkers.combined_heuristic import CheckersCombinedHeuristic
+from heuristics.four_in_line.connect_four_heuristic import ConnectFourHeuristic
+
 # =========================
 # REGISTRO DE JUEGOS
 # =========================
@@ -24,6 +27,29 @@ GAMES = {
     "3": CheckersGame
 }
 
+
+HEURISTICS_BY_GAME = {
+    "1": {
+        # 3 en raya: todavía no tienes heurísticas separadas
+    },
+    "2": {
+        "1": {
+            "name": "Heurística de 4 en raya",
+            "instance": ConnectFourHeuristic(),
+        }
+    },
+    "3": {
+        "1": {
+            "name": "Heurística de damas",
+            "instance": CheckersCombinedHeuristic(),
+        }
+    },
+}
+
+ALGORITHMS_REQUIRING_HEURISTIC = (
+    choose_ai_move_alpha_beta_depth_limit,
+    choose_ai_move_mcts_max_depth,
+)
 
 # =========================
 # TODOS LOS ALGORITMOS
@@ -96,7 +122,7 @@ def choose_game():
         option = input("Opción: ").strip()
 
         if option in GAMES:
-            return GAMES[option]()
+            return option, GAMES[option]()
 
         print("Opción no válida")
 
@@ -117,6 +143,25 @@ def choose_mode():
 
         print("Opción no válida")
 
+def choose_heuristic(game_key: str):
+    available_heuristics = HEURISTICS_BY_GAME.get(game_key, {})
+
+    while True:
+        print("\n=== Selecciona heurística ===")
+        print("0. Ninguna")
+
+        for key, config in available_heuristics.items():
+            print(f"{key}. {config['name']}")
+
+        option = input("Opción: ").strip()
+
+        if option == "0":
+            return None
+
+        if option in available_heuristics:
+            return available_heuristics[option]["instance"]
+
+        print("Opción no válida")
 
 def choose_algorithm(prompt="Selecciona algoritmo"):
     """
@@ -136,6 +181,18 @@ def choose_algorithm(prompt="Selecciona algoritmo"):
 
         print("Opción no válida")
 
+def build_algorithm_params(ai_config: dict, heuristic) -> dict:
+    params = ai_config["params"].copy()
+
+    if ai_config["fn"] in ALGORITHMS_REQUIRING_HEURISTIC:
+        if heuristic is None:
+            raise ValueError(
+                f"El algoritmo '{ai_config['name']}' necesita una heurística."
+            )
+
+        params["heuristic"] = heuristic
+
+    return params
 
 def ask_yes_no(text, default=True):
     """
@@ -196,46 +253,77 @@ def ask_tournament_file():
 # CREACIÓN DE JUGADORES
 # =========================
 
-def build_human_vs_ai_players():
-    """
-    Crea los jugadores para el modo Humano vs IA.
-    """
+def build_human_vs_ai_players(heuristic):
     ai_config = choose_algorithm("Selecciona IA")
 
-    human = HumanPlayer(name="Humano", player_id=1)
+    human = HumanPlayer(
+        name="Humano",
+        player_id=1
+    )
+
+    try:
+        algorithm_params = build_algorithm_params(
+            ai_config,
+            heuristic
+        )
+    except ValueError as error:
+        print(error)
+        return build_human_vs_ai_players(heuristic)
+
     ai = AIPlayer(
         name=ai_config["name"],
         player_id=2,
         algorithm_fn=ai_config["fn"],
-        algorithm_params=ai_config["params"]
+        algorithm_params=algorithm_params
     )
 
     return [human, ai]
 
 
-def build_ai_vs_ai_players():
-    """
-    Crea los jugadores para el modo IA vs IA.
-    """
-    ai1_config = choose_algorithm("Selecciona algoritmo jugador 1")
-    ai2_config = choose_algorithm("Selecciona algoritmo jugador 2")
+def build_ai_vs_ai_players(heuristic):
+    while True:
+        ai1_config = choose_algorithm(
+            "Selecciona algoritmo jugador 1"
+        )
+
+        try:
+            ai1_params = build_algorithm_params(
+                ai1_config,
+                heuristic
+            )
+            break
+        except ValueError as error:
+            print(error)
+
+    while True:
+        ai2_config = choose_algorithm(
+            "Selecciona algoritmo jugador 2"
+        )
+
+        try:
+            ai2_params = build_algorithm_params(
+                ai2_config,
+                heuristic
+            )
+            break
+        except ValueError as error:
+            print(error)
 
     ai1 = AIPlayer(
         name=ai1_config["name"],
         player_id=1,
         algorithm_fn=ai1_config["fn"],
-        algorithm_params=ai1_config["params"]
+        algorithm_params=ai1_params
     )
 
     ai2 = AIPlayer(
         name=ai2_config["name"],
         player_id=2,
         algorithm_fn=ai2_config["fn"],
-        algorithm_params=ai2_config["params"]
+        algorithm_params=ai2_params
     )
 
     return [ai1, ai2]
-
 
 # =========================
 # TORNEO AUTOMÁTICO
@@ -301,14 +389,15 @@ def main():
         # ---------------------------------
         # PARTIDA NORMAL
         # ---------------------------------
-        game = choose_game()
+        game_key, game = choose_game()
+        heuristic = choose_heuristic(game_key)
         mode = choose_mode()
 
         # ---------------------------------
         # HUMANO VS IA
         # ---------------------------------
         if mode == "1":
-            players = build_human_vs_ai_players()
+            players = build_human_vs_ai_players(heuristic)
             games_count = 1
             show_board = True
             stats_file = ask_stats_file()
@@ -317,7 +406,7 @@ def main():
         # IA VS IA
         # ---------------------------------
         else:
-            players = build_ai_vs_ai_players()
+            players = build_ai_vs_ai_players(heuristic)
 
             try:
                 games_count = int(input("¿Cuántas partidas quieres ejecutar?: ").strip())

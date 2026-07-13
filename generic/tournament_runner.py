@@ -185,6 +185,16 @@ def _safe_params(params: dict | None) -> dict:
     result = {}
 
     for key, value in params.items():
+        # Una heurística es un objeto Python y no se puede guardar directamente.
+        # Guardamos el nombre de su clase.
+        if key == "heuristic":
+            if value is None:
+                result[key] = None
+            else:
+                result[key] = value.__class__.__name__
+
+            continue
+
         try:
             # Comprobamos si el valor se puede convertir a JSON.
             json.dumps(value)
@@ -197,7 +207,6 @@ def _safe_params(params: dict | None) -> dict:
             result[key] = str(value)
 
     return result
-
 
 def _public_algorithm_config(key: str, config: dict) -> dict:
     """
@@ -389,6 +398,8 @@ class TournamentRunner:
         self,
         game_registry: dict[str, Any],
         algorithm_registry: dict[str, dict],
+        heuristics_by_game: dict[str, dict],
+        algorithms_requiring_heuristic: tuple,
         results_file: str = "stats/results.json",
         move_timeout_seconds: float = 5.0,
         match_timeout_seconds: float = 120.0,
@@ -401,6 +412,13 @@ class TournamentRunner:
         # Diccionario de algoritmos disponibles.
         # Ejemplo: {"1": {"name": "Minimax", "fn": ..., "params": {...}}, ...}
         self.algorithm_registry = algorithm_registry
+
+        # Diccionario de heurísticas disponibles para cada juego.
+        # Ejemplo: {"2": {"1": {"name": "...", "instance": ...}}, ...}
+        self.heuristics_by_game = heuristics_by_game
+
+        # Funciones de los algoritmos que necesitan recibir una heurística.
+        self.algorithms_requiring_heuristic = algorithms_requiring_heuristic
 
         # Fichero final donde se guardarán todos los resultados.
         self.results_file = results_file
@@ -434,6 +452,55 @@ class TournamentRunner:
             "matches": [],
             "invalid_algorithms_by_game": {}
         }
+
+
+    def _build_algorithm_config_for_game(
+        self,
+        game_key: str,
+        algorithm_config: dict
+    ) -> dict:
+        """
+        Crea una copia de la configuración de un algoritmo para un juego concreto.
+
+        Si el algoritmo necesita una heurística:
+        - busca las heurísticas registradas para ese juego
+        - toma la primera heurística disponible
+        - la añade a los parámetros del algoritmo
+
+        La configuración original de self.algorithm_registry no se modifica.
+        """
+
+        # Creamos una copia independiente de la configuración.
+        config = {
+            "name": algorithm_config["name"],
+            "fn": algorithm_config["fn"],
+            "params": algorithm_config.get("params", {}).copy()
+        }
+
+        # Los algoritmos sin límite de profundidad no necesitan heurística.
+        if config["fn"] not in self.algorithms_requiring_heuristic:
+            return config
+
+        # Obtenemos las heurísticas registradas para el juego actual.
+        game_heuristics = self.heuristics_by_game.get(game_key, {})
+
+        # Si el algoritmo necesita heurística y el juego no tiene ninguna,
+        # esta combinación no se puede ejecutar.
+        if not game_heuristics:
+            raise ValueError(
+                f"El juego '{game_key}' no tiene una heurística configurada "
+                f"para el algoritmo '{config['name']}'."
+            )
+
+        # Actualmente cada juego tiene una única heurística registrada.
+        # Si en el futuro hay varias, aquí se podrá decidir cuál utilizar.
+        heuristic_config = next(iter(game_heuristics.values()))
+
+        # Añadimos la instancia de la heurística a los parámetros del algoritmo.
+        config["params"]["heuristic"] = heuristic_config["instance"]
+
+        return config
+
 
     def run_all(self) -> dict:
         """
@@ -494,14 +561,49 @@ class TournamentRunner:
                     f"{game_name}: {alg1_config['name']} vs {alg2_config['name']}"
                 )
 
+                # Preparamos las configuraciones para el juego actual.
+                # Si un algoritmo necesita heurística, se añade aquí.
+                try:
+                    game_alg1_config = self._build_algorithm_config_for_game(
+                        game_key=game_key,
+                        algorithm_config=alg1_config
+                    )
+
+                    game_alg2_config = self._build_algorithm_config_for_game(
+                        game_key=game_key,
+                        algorithm_config=alg2_config
+                    )
+
+                except ValueError as error:
+                    # Si falta una heurística necesaria, la partida se marca
+                    # como inválida sin llegar a crear el proceso.
+                    match_result = {
+                        "status": "invalid_algorithm_for_game",
+                        "valid": False,
+                        "game": {
+                            "key": game_key,
+                            "name": game_name
+                        },
+                        "player1": _public_algorithm_config(alg1_key, alg1_config),
+                        "player2": _public_algorithm_config(alg2_key, alg2_config),
+                        "invalid_algorithm": "heuristic_missing",
+                        "invalid_player_id": None,
+                        "reason": str(error),
+                        "elapsed_time": 0.0
+                    }
+
+                    # Guardamos el resultado inválido y continuamos con la siguiente pareja.
+                    self._record_match_result(match_result)
+                    continue
+
                 # Ejecutamos la partida con timeout de proceso.
                 match_result = self._run_match_with_process_timeout(
                     game_key=game_key,
                     game_cls=game_cls,
                     alg1_key=alg1_key,
-                    alg1_config=alg1_config,
+                    alg1_config=game_alg1_config,
                     alg2_key=alg2_key,
-                    alg2_config=alg2_config
+                    alg2_config=game_alg2_config
                 )
 
                 # Guardamos el resultado en la estructura general.

@@ -108,66 +108,6 @@ class ConnectFourForwardModel(ForwardModel[ConnectFourGameState, DropPieceAction
 
         return -100000 + depth
 
-    def evaluate_heuristic(self, state: ConnectFourGameState, ai_player: int) -> int:
-        opponent = 1 if ai_player == 2 else 2
-        score = 0
-
-        # Bonus por controlar el centro
-        center_col = state.width // 2
-        center_values = [state.get(center_col, y) for y in range(state.height)]
-        score += center_values.count(ai_player) * 6
-        score -= center_values.count(opponent) * 6
-
-        # Horizontales
-        for y in range(state.height):
-            for x in range(state.width - 3):
-                window = [state.get(x + i, y) for i in range(4)]
-                score += self.evaluate_window(window, ai_player, opponent)
-
-        # Verticales
-        for x in range(state.width):
-            for y in range(state.height - 3):
-                window = [state.get(x, y + i) for i in range(4)]
-                score += self.evaluate_window(window, ai_player, opponent)
-
-        # Diagonales pabajo
-        for x in range(state.width - 3):
-            for y in range(state.height - 3):
-                window = [state.get(x + i, y + i) for i in range(4)]
-                score += self.evaluate_window(window, ai_player, opponent)
-
-        # Diagonales parriba
-        for x in range(state.width - 3):
-            for y in range(3, state.height):
-                window = [state.get(x + i, y - i) for i in range(4)]
-                score += self.evaluate_window(window, ai_player, opponent)
-
-        return score
-
-    def evaluate_window(self, window: list[int], ai_player: int, opponent: int) -> int:
-        score = 0
-
-        ai_count = window.count(ai_player)
-        opp_count = window.count(opponent)
-        empty_count = window.count(0)
-
-        # Casos favorables para la IA
-        if ai_count == 4:
-            score += 10000
-        elif ai_count == 3 and empty_count == 1:
-            score += 100
-        elif ai_count == 2 and empty_count == 2:
-            score += 10
-
-        # Casos peligrosos del rival
-        if opp_count == 4:
-            score -= 10000
-        elif opp_count == 3 and empty_count == 1:
-            score -= 120
-        elif opp_count == 2 and empty_count == 2:
-            score -= 12
-
-        return score
 
     def check_win_from_cell(
         self,

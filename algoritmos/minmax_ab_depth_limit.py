@@ -19,12 +19,13 @@ def alpha_beta(
     state: S,
     model: ForwardModel[S, A],
     ai_player: int,
+    heuristic,
     alpha: float = float("-inf"),
     beta: float = float("inf"),
     depth: int = 0,
     max_depth: int = 5,
     stats: Optional[SearchStats] = None
-) -> tuple[int, Optional[A]]:
+) -> tuple[float, Optional[A]]:
     """
     Igual que minimax, pero usando poda alfa-beta.
 
@@ -52,7 +53,7 @@ def alpha_beta(
     # En ese punto usamos una heurística para estimar lo bueno/malo
     # del estado aunque no sea terminal.
     if depth >= max_depth:
-        return model.evaluate_heuristic(state, ai_player), None
+        return heuristic.evaluate(state, ai_player), None
 
     actions = model.compute_available_actions(state)
     if not actions:
@@ -74,6 +75,7 @@ def alpha_beta(
                 next_state,
                 model,
                 ai_player,
+                heuristic,
                 alpha,
                 beta,
                 depth + 1,
@@ -110,6 +112,7 @@ def alpha_beta(
                 next_state,
                 model,
                 ai_player,
+                heuristic,
                 alpha,
                 beta,
                 depth + 1,
@@ -137,19 +140,21 @@ def choose_ai_move_alpha_beta_depth_limit(
     state: S,
     model: ForwardModel[S, A],
     ai_player: int,
+    heuristic,
     max_depth: int = 5
 ) -> tuple[A, SearchStats]:
-    """
-    Función de conveniencia, igual que choose_ai_move de minimax,
-    pero usando alfa-beta.
 
-    CAMBIO IMPORTANTE:
-    Se añade max_depth para poder limitar la búsqueda.
-    """
     stats = SearchStats()
     start_time = time.perf_counter()
 
-    _, action = alpha_beta(state, model, ai_player, max_depth=max_depth, stats=stats)
+    _, action = alpha_beta(
+        state=state,
+        model=model,
+        ai_player=ai_player,
+        heuristic=heuristic,
+        max_depth=max_depth,
+        stats=stats
+    )
 
     if action is None:
         actions = model.compute_available_actions(state)

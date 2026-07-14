@@ -6,6 +6,7 @@ from generic.tournament_runner import TournamentRunner
 from juegos.tictactoe.game import TicTacToeGame
 from juegos.four_in_line.game import Connect4Game
 from juegos.checkers.game import CheckersGame
+from juegos.love_letter.game import LoveLetterGame
 
 from algoritmos.minmax import choose_ai_move
 from algoritmos.minmax_ab import choose_ai_move_alpha_beta
@@ -16,6 +17,7 @@ from algoritmos.mcts_max_depth import choose_ai_move_mcts_max_depth
 
 from heuristics.checkers.combined_heuristic import CheckersCombinedHeuristic
 from heuristics.four_in_line.connect_four_heuristic import ConnectFourHeuristic
+from heuristics.love_letter.love_letter_memory_heuristic import LoveLetterMemoryHeuristic
 
 # =========================
 # REGISTRO DE JUEGOS
@@ -24,7 +26,8 @@ from heuristics.four_in_line.connect_four_heuristic import ConnectFourHeuristic
 GAMES = {
     "1": TicTacToeGame,
     "2": Connect4Game,
-    "3": CheckersGame
+    "3": CheckersGame,
+    "4": LoveLetterGame
 }
 
 
@@ -42,6 +45,12 @@ HEURISTICS_BY_GAME = {
         "1": {
             "name": "Heurística de damas",
             "instance": CheckersCombinedHeuristic(),
+        }
+    },
+     "4": {
+        "1": {
+            "name": "Heurística de love letter",
+            "instance": LoveLetterMemoryHeuristic(),
         }
     },
 }
@@ -118,6 +127,7 @@ def choose_game():
         print("1. 3 en raya")
         print("2. 4 en raya")
         print("3. Las damas")
+        print("4. Love letter")
 
         option = input("Opción: ").strip()
 

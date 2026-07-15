@@ -88,6 +88,19 @@ def other_player(player: int) -> int:
     return 1 if player == 2 else 2
 
 
+# Devuelve una etiqueta más clara para mostrar cada jugador por consola.
+# En el modo Humano vs IA del framework, el jugador 1 es el humano
+# y el jugador 2 es la inteligencia artificial.
+def player_label(player: int) -> str:
+    """
+    Devuelve el nombre visible del jugador.
+    """
+    if player == 1:
+        return "Jugador 1 (Humano)"
+
+    return "Jugador 2 (IA)"
+
+
 # Convierte una carta numérica en el texto mostrado por consola.
 def card_name(card: int) -> str:
     """
@@ -700,7 +713,7 @@ def print_board(state: LoveLetterGameState):
     """
     print()
     print("=== LOVE LETTER ===")
-    print("Jugador actual:", state.current_player)
+    print("Jugador actual:", player_label(state.current_player))
     print("Cartas restantes:", len(state.deck))
 
     # Las cartas retiradas boca arriba son información pública.
@@ -726,13 +739,13 @@ def print_board(state: LoveLetterGameState):
         )
 
         print(
-            f"Jugador {player}: "
+            f"{player_label(player)}: "
             f"mano=[{hand}], "
             f"protegido={state.protected[player]}, "
             f"vivo={state.alive[player]}"
         )
 
-        print(f"Descartes jugador {player}: [{discarded}]")
+        print(f"Descartes de {player_label(player)}: [{discarded}]")
 
     # Se muestra el último efecto que ocurrió realmente en la partida.
     if state.last_event is not None:
@@ -750,7 +763,8 @@ def print_board(state: LoveLetterGameState):
             observer = other_player(player)
 
             print(
-                f"Jugador {observer} conoce la carta del jugador {player}: "
+                f"{player_label(observer)} conoce la carta de "
+                f"{player_label(player)}: "
                 f"{card_name(known_card)} ({known_card})"
             )
 
@@ -775,7 +789,7 @@ def read_human_move(state: LoveLetterGameState):
 
         # Algunas cartas necesitan indicar un jugador objetivo.
         if action.target is not None:
-            text += f" -> jugador {action.target}"
+            text += f" -> {player_label(action.target)}"
 
         # Guardia también necesita mostrar la carta adivinada.
         if action.guess is not None:

@@ -15,11 +15,11 @@ from algoritmos.minmax_ab_depth_limit import choose_ai_move_alpha_beta_depth_lim
 from algoritmos.mcts import choose_ai_move_mcts
 from algoritmos.mcts_max_depth import choose_ai_move_mcts_max_depth
 
-
 from heuristics.checkers.combined_heuristic import CheckersCombinedHeuristic
 from heuristics.four_in_line.connect_four_heuristic import ConnectFourHeuristic
 from heuristics.love_letter.love_letter_memory_heuristic import LoveLetterMemoryHeuristic
 from heuristics.simple_chess.simple_chess_heuristic import SimpleChessHeuristic
+
 
 # =========================
 # REGISTRO DE JUEGOS
@@ -34,9 +34,13 @@ GAMES = {
 }
 
 
+# =========================
+# HEURÍSTICAS POR JUEGO
+# =========================
+
 HEURISTICS_BY_GAME = {
     "1": {
-        # 3 en raya: todavía no tienes heurísticas separadas
+        # 3 en raya: no tiene una heurística separada
     },
     "2": {
         "1": {
@@ -50,9 +54,9 @@ HEURISTICS_BY_GAME = {
             "instance": CheckersCombinedHeuristic(),
         }
     },
-     "4": {
+    "4": {
         "1": {
-            "name": "Heurística de love letter",
+            "name": "Heurística de Love Letter",
             "instance": LoveLetterMemoryHeuristic(),
         }
     },
@@ -64,10 +68,12 @@ HEURISTICS_BY_GAME = {
     },
 }
 
+
 ALGORITHMS_REQUIRING_HEURISTIC = (
     choose_ai_move_alpha_beta_depth_limit,
     choose_ai_move_mcts_max_depth,
 )
+
 
 # =========================
 # TODOS LOS ALGORITMOS
@@ -102,7 +108,10 @@ ALL_ALGORITHMS = {
     "6": {
         "name": "MCTS con max depth (1000 iter)",
         "fn": choose_ai_move_mcts_max_depth,
-        "params": {"iterations": 1000, "max_rollout_depth": 20}
+        "params": {
+            "iterations": 1000,
+            "max_rollout_depth": 20
+        }
     }
 }
 
@@ -129,14 +138,14 @@ def choose_main_option():
 def choose_game():
     """
     Pregunta al usuario qué juego quiere y devuelve
-    una instancia del juego seleccionado.
+    la clave y una instancia del juego seleccionado.
     """
     while True:
         print("\n=== Selecciona juego ===")
         print("1. 3 en raya")
         print("2. 4 en raya")
         print("3. Las damas")
-        print("4. Love letter")
+        print("4. Love Letter")
         print("5. Ajedrez simplificado")
 
         option = input("Opción: ").strip()
@@ -149,7 +158,7 @@ def choose_game():
 
 def choose_mode():
     """
-    Pregunta si quiere humano vs IA o IA vs IA.
+    Pregunta si se quiere jugar humano contra IA o IA contra IA.
     """
     while True:
         print("\n=== Selecciona modo ===")
@@ -163,25 +172,6 @@ def choose_mode():
 
         print("Opción no válida")
 
-def choose_heuristic(game_key: str):
-    available_heuristics = HEURISTICS_BY_GAME.get(game_key, {})
-
-    while True:
-        print("\n=== Selecciona heurística ===")
-        print("0. Ninguna")
-
-        for key, config in available_heuristics.items():
-            print(f"{key}. {config['name']}")
-
-        option = input("Opción: ").strip()
-
-        if option == "0":
-            return None
-
-        if option in available_heuristics:
-            return available_heuristics[option]["instance"]
-
-        print("Opción no válida")
 
 def choose_algorithm(prompt="Selecciona algoritmo"):
     """
@@ -201,24 +191,86 @@ def choose_algorithm(prompt="Selecciona algoritmo"):
 
         print("Opción no válida")
 
-def build_algorithm_params(ai_config: dict, heuristic) -> dict:
+
+def choose_heuristic(game_key: str):
+    """
+    Muestra las heurísticas disponibles para el juego seleccionado.
+
+    Devuelve:
+    - la instancia de la heurística elegida;
+    - None si el juego no dispone de heurísticas.
+    """
+    available_heuristics = HEURISTICS_BY_GAME.get(game_key, {})
+
+    if not available_heuristics:
+        return None
+
+    while True:
+        print("\n=== Selecciona heurística ===")
+
+        for key, config in available_heuristics.items():
+            print(f"{key}. {config['name']}")
+
+        option = input("Opción: ").strip()
+
+        if option in available_heuristics:
+            return available_heuristics[option]["instance"]
+
+        print("Opción no válida")
+
+
+def build_algorithm_params(ai_config: dict, game_key: str) -> dict:
+    """
+    Crea los parámetros del algoritmo.
+
+    Solo pregunta por una heurística cuando el algoritmo elegido
+    realmente la necesita.
+    """
     params = ai_config["params"].copy()
 
-    if ai_config["fn"] in ALGORITHMS_REQUIRING_HEURISTIC:
-        if heuristic is None:
-            raise ValueError(
-                f"El algoritmo '{ai_config['name']}' necesita una heurística."
-            )
+    if ai_config["fn"] not in ALGORITHMS_REQUIRING_HEURISTIC:
+        return params
 
-        params["heuristic"] = heuristic
+    heuristic = choose_heuristic(game_key)
 
+    if heuristic is None:
+        raise ValueError(
+            f"El algoritmo '{ai_config['name']}' necesita una heurística, "
+            "pero el juego seleccionado no dispone de ninguna."
+        )
+
+    params["heuristic"] = heuristic
     return params
+
+
+def choose_algorithm_and_params(game_key: str, prompt: str):
+    """
+    Permite elegir un algoritmo y prepara sus parámetros.
+
+    Si el algoritmo necesita una heurística que no existe para el juego,
+    vuelve a pedir otro algoritmo.
+    """
+    while True:
+        ai_config = choose_algorithm(prompt)
+
+        try:
+            algorithm_params = build_algorithm_params(
+                ai_config=ai_config,
+                game_key=game_key
+            )
+            return ai_config, algorithm_params
+        except ValueError as error:
+            print(error)
+            print("Selecciona otro algoritmo.")
+
 
 def ask_yes_no(text, default=True):
     """
     Pregunta sí/no con valor por defecto.
     """
-    raw = input(f"{text} [{'S/n' if default else 's/N'}]: ").strip().lower()
+    raw = input(
+        f"{text} [{'S/n' if default else 's/N'}]: "
+    ).strip().lower()
 
     if raw == "":
         return default
@@ -229,15 +281,22 @@ def ask_yes_no(text, default=True):
 def ask_stats_file():
     """
     Pregunta si se quieren guardar estadísticas en un JSON.
-    Si sí, devuelve la ruta del fichero.
-    Si no, devuelve None.
+
+    Devuelve:
+    - la ruta del fichero si se quieren guardar;
+    - None en caso contrario.
     """
-    save_stats = ask_yes_no("¿Guardar estadísticas en un JSON?", default=False)
+    save_stats = ask_yes_no(
+        "¿Guardar estadísticas en un JSON?",
+        default=False
+    )
 
     if not save_stats:
         return None
 
-    path = input("Ruta del fichero JSON [stats/results.json]: ").strip()
+    path = input(
+        "Ruta del fichero JSON [stats/results.json]: "
+    ).strip()
 
     if path == "":
         path = "stats/results.json"
@@ -253,15 +312,19 @@ def ask_float(text, default):
 
     try:
         value = float(raw)
+
         if value <= 0:
             return default
+
         return value
     except ValueError:
         return default
 
 
 def ask_tournament_file():
-    path = input("Ruta del JSON final [stats/results.json]: ").strip()
+    path = input(
+        "Ruta del JSON final [stats/results.json]: "
+    ).strip()
 
     if path == "":
         path = "stats/results.json"
@@ -273,22 +336,16 @@ def ask_tournament_file():
 # CREACIÓN DE JUGADORES
 # =========================
 
-def build_human_vs_ai_players(heuristic):
-    ai_config = choose_algorithm("Selecciona IA")
+def build_human_vs_ai_players(game_key: str):
+    ai_config, algorithm_params = choose_algorithm_and_params(
+        game_key=game_key,
+        prompt="Selecciona IA"
+    )
 
     human = HumanPlayer(
         name="Humano",
         player_id=1
     )
-
-    try:
-        algorithm_params = build_algorithm_params(
-            ai_config,
-            heuristic
-        )
-    except ValueError as error:
-        print(error)
-        return build_human_vs_ai_players(heuristic)
 
     ai = AIPlayer(
         name=ai_config["name"],
@@ -300,34 +357,16 @@ def build_human_vs_ai_players(heuristic):
     return [human, ai]
 
 
-def build_ai_vs_ai_players(heuristic):
-    while True:
-        ai1_config = choose_algorithm(
-            "Selecciona algoritmo jugador 1"
-        )
+def build_ai_vs_ai_players(game_key: str):
+    ai1_config, ai1_params = choose_algorithm_and_params(
+        game_key=game_key,
+        prompt="Selecciona algoritmo jugador 1"
+    )
 
-        try:
-            ai1_params = build_algorithm_params(
-                ai1_config,
-                heuristic
-            )
-            break
-        except ValueError as error:
-            print(error)
-
-    while True:
-        ai2_config = choose_algorithm(
-            "Selecciona algoritmo jugador 2"
-        )
-
-        try:
-            ai2_params = build_algorithm_params(
-                ai2_config,
-                heuristic
-            )
-            break
-        except ValueError as error:
-            print(error)
+    ai2_config, ai2_params = choose_algorithm_and_params(
+        game_key=game_key,
+        prompt="Selecciona algoritmo jugador 2"
+    )
 
     ai1 = AIPlayer(
         name=ai1_config["name"],
@@ -344,6 +383,7 @@ def build_ai_vs_ai_players(heuristic):
     )
 
     return [ai1, ai2]
+
 
 # =========================
 # TORNEO AUTOMÁTICO
@@ -400,7 +440,10 @@ def main():
         if main_option == "2":
             run_full_ai_tournament()
 
-            if not ask_yes_no("¿Quieres volver al menú?", default=True):
+            if not ask_yes_no(
+                "¿Quieres volver al menú?",
+                default=True
+            ):
                 print("Saliendo...")
                 break
 
@@ -410,14 +453,13 @@ def main():
         # PARTIDA NORMAL
         # ---------------------------------
         game_key, game = choose_game()
-        heuristic = choose_heuristic(game_key)
         mode = choose_mode()
 
         # ---------------------------------
         # HUMANO VS IA
         # ---------------------------------
         if mode == "1":
-            players = build_human_vs_ai_players(heuristic)
+            players = build_human_vs_ai_players(game_key)
             games_count = 1
             show_board = True
             stats_file = ask_stats_file()
@@ -426,10 +468,15 @@ def main():
         # IA VS IA
         # ---------------------------------
         else:
-            players = build_ai_vs_ai_players(heuristic)
+            players = build_ai_vs_ai_players(game_key)
 
             try:
-                games_count = int(input("¿Cuántas partidas quieres ejecutar?: ").strip())
+                games_count = int(
+                    input(
+                        "¿Cuántas partidas quieres ejecutar?: "
+                    ).strip()
+                )
+
                 if games_count <= 0:
                     games_count = 1
             except ValueError:
@@ -453,9 +500,12 @@ def main():
         runner.run()
 
         # ---------------------------------
-        # REPEAT
+        # REPETIR
         # ---------------------------------
-        if not ask_yes_no("¿Quieres volver al menú?", default=True):
+        if not ask_yes_no(
+            "¿Quieres volver al menú?",
+            default=True
+        ):
             print("Saliendo...")
             break
 

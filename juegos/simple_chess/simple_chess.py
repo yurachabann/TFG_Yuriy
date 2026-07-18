@@ -1,20 +1,43 @@
+# dataclass permite crear clases de datos sin escribir manualmente
+# métodos como __init__, __repr__ o __eq__.
 from dataclasses import dataclass
+# Optional[T] indica que un valor puede ser de tipo T o None.
 from typing import Optional
 
+# GameState es la clase base común para representar estados de juego.
 from generic.game_state import GameState
+# GameAction es la clase base común para representar acciones.
 from generic.game_action import GameAction
+# ForwardModel define la interfaz genérica para generar acciones,
+# avanzar estados y evaluar posiciones terminales.
 from generic.forward_model import ForwardModel
 
+
+# ============================================================
+# CONSTANTES DEL TABLERO Y DE LAS PIEZAS
+# ============================================================
+
+# Representación interna de una casilla vacía.
 EMPTY = "."
+# Identificador del jugador blanco.
 WHITE = 1
+# Identificador del jugador negro.
 BLACK = 2
+# Código interno del peón.
 PAWN = "P"
+# Código interno del caballo.
 KNIGHT = "N"
+# Código interno del alfil.
 BISHOP = "B"
+# Código interno de la torre.
 ROOK = "R"
+# Código interno de la dama.
 QUEEN = "Q"
+# Código interno del rey.
 KING = "K"
 
+
+# Símbolos Unicode usados para mostrar las piezas blancas en consola.
 WHITE_PIECES = {
     PAWN: "♙",
     KNIGHT: "♘",
@@ -24,6 +47,8 @@ WHITE_PIECES = {
     KING: "♔"
 }
 
+
+# Símbolos Unicode usados para mostrar las piezas negras en consola.
 BLACK_PIECES = {
     PAWN: "♟",
     KNIGHT: "♞",
@@ -34,6 +59,12 @@ BLACK_PIECES = {
 }
 
 
+
+# ============================================================
+# FUNCIONES AUXILIARES
+# ============================================================
+
+# Devuelve el identificador del jugador contrario.
 def other_player(player: int) -> int:
     return WHITE if player == BLACK else BLACK
 
@@ -52,10 +83,15 @@ def player_label(player: int) -> str:
     return "Jugador 2 (IA - Negras)"
 
 
+
+# Construye la representación interna de una pieza.
+# Ejemplos: 'wP' = peón blanco, 'bK' = rey negro.
 def make_piece(player: int, kind: str) -> str:
     return ("w" if player == WHITE else "b") + kind
 
 
+
+# Obtiene el propietario de una pieza a partir de su prefijo.
 def piece_player(piece: str) -> Optional[int]:
     if piece == EMPTY:
         return None
@@ -63,10 +99,14 @@ def piece_player(piece: str) -> Optional[int]:
     return WHITE if piece[0] == "w" else BLACK
 
 
+
+# Obtiene el tipo de pieza a partir de su segundo carácter.
 def piece_type(piece: str) -> Optional[str]:
     return None if piece == EMPTY else piece[1]
 
 
+
+# Convierte la representación interna en el símbolo Unicode visible.
 def piece_symbol(piece: str) -> str:
     if piece == EMPTY:
         return EMPTY
@@ -80,6 +120,12 @@ def piece_symbol(piece: str) -> str:
     return symbols[piece_type(piece)]
 
 
+
+# ============================================================
+# ESTADO DEL JUEGO
+# ============================================================
+
+# dataclass genera automáticamente el constructor del estado.
 @dataclass
 class SimpleChessGameState(GameState):
     """Estado del ajedrez simplificado."""
@@ -89,10 +135,15 @@ class SimpleChessGameState(GameState):
     is_terminal: bool = False
     winner: Optional[int] = None
 
+
+    # __post_init__ se ejecuta justo después del constructor generado
+    # por dataclass y prepara el tablero cuando no se proporcionó uno.
     def __post_init__(self):
         if self.board is None:
             self.board = self.create_initial_board()
 
+
+    # Crea un tablero de 64 casillas con la disposición inicial estándar.
     def create_initial_board(self) -> list[str]:
         board = [EMPTY] * 64
 
@@ -117,6 +168,9 @@ class SimpleChessGameState(GameState):
 
         return board
 
+
+    # Crea una copia independiente del estado.
+    # Los algoritmos de búsqueda usan clones para simular jugadas.
     def clone(self):
         return SimpleChessGameState(
             board=self.board.copy(),
@@ -125,19 +179,33 @@ class SimpleChessGameState(GameState):
             winner=self.winner
         )
 
+
+    # Convierte coordenadas bidimensionales en un índice de lista.
     def index(self, x: int, y: int) -> int:
         return y * 8 + x
 
+
+    # Lee el contenido de una casilla.
     def get(self, x: int, y: int) -> str:
         return self.board[self.index(x, y)]
 
+
+    # Sustituye el contenido de una casilla.
     def set(self, x: int, y: int, value: str):
         self.board[self.index(x, y)] = value
 
+
+    # Comprueba que las coordenadas pertenezcan al tablero 8x8.
     def inside(self, x: int, y: int) -> bool:
         return 0 <= x < 8 and 0 <= y < 8
 
 
+
+# ============================================================
+# ACCIÓN DEL JUEGO
+# ============================================================
+
+# Una acción guarda la casilla de origen, la de destino y el jugador.
 @dataclass
 class MovePieceAction(GameAction):
     from_x: int
@@ -147,6 +215,12 @@ class MovePieceAction(GameAction):
     player: int
 
 
+
+# ============================================================
+# FORWARD MODEL: REGLAS Y TRANSICIONES
+# ============================================================
+
+# Esta clase contiene las reglas del ajedrez simplificado.
 class SimpleChessForwardModel(
     ForwardModel[SimpleChessGameState, MovePieceAction]
 ):
@@ -160,8 +234,11 @@ class SimpleChessForwardModel(
     - promoción automática a dama
     """
 
+    # Valor terminal suficientemente alto para dominar la heurística.
     WIN_SCORE = 100000
 
+
+    # Genera únicamente los movimientos verdaderamente legales.
     def compute_available_actions(
         self,
         state: SimpleChessGameState
@@ -176,14 +253,20 @@ class SimpleChessForwardModel(
         if state.is_terminal:
             return []
 
+        # El jugador activo es el único para quien se generan acciones.
         player = state.current_player
+
+        # Primero se obtienen todos los movimientos permitidos por la pieza.
         pseudo_actions = self.compute_pseudo_legal_actions(
             state,
             player
         )
 
+        # Aquí se guardarán solamente los movimientos que no dejan
+        # al propio rey en jaque.
         legal_actions = []
 
+        # Cada movimiento se prueba sobre una copia del estado.
         for action in pseudo_actions:
             next_state = state.clone()
 
@@ -205,6 +288,9 @@ class SimpleChessForwardModel(
 
         return legal_actions
 
+
+    # Genera movimientos válidos por geometría de pieza, pero todavía
+    # no comprueba si el propio rey queda expuesto.
     def compute_pseudo_legal_actions(
         self,
         state: SimpleChessGameState,
@@ -240,6 +326,8 @@ class SimpleChessForwardModel(
 
         return actions
 
+
+    # Localiza el rey de un jugador dentro del tablero.
     def find_king(
         self,
         state: SimpleChessGameState,
@@ -248,6 +336,7 @@ class SimpleChessForwardModel(
         """
         Busca el rey de un jugador y devuelve sus coordenadas.
         """
+        # Construye exactamente el código interno del rey buscado.
         expected_king = make_piece(player, KING)
 
         for y in range(8):
@@ -257,6 +346,8 @@ class SimpleChessForwardModel(
 
         return None
 
+
+    # Comprueba si una casilla está atacada por alguna pieza rival.
     def is_square_attacked(
         self,
         state: SimpleChessGameState,
@@ -384,6 +475,8 @@ class SimpleChessForwardModel(
 
         return False
 
+
+    # Comprueba si el rey del jugador indicado está actualmente en jaque.
     def is_king_attacked(
         self,
         state: SimpleChessGameState,
@@ -406,6 +499,8 @@ class SimpleChessForwardModel(
             other_player(player)
         )
 
+
+    # Delega la generación de movimientos según el tipo de pieza.
     def get_piece_actions(self, state, x, y, piece):
         kind = piece_type(piece)
 
@@ -491,6 +586,8 @@ class SimpleChessForwardModel(
 
         return []
 
+
+    # Genera avance simple, avance doble inicial y capturas diagonales.
     def get_pawn_actions(self, state, x, y):
         player = state.current_player
         direction = -1 if player == WHITE else 1
@@ -554,6 +651,9 @@ class SimpleChessForwardModel(
 
         return actions
 
+
+    # Genera movimientos de salto o de una casilla usando desplazamientos.
+    # Se usa para caballo y rey.
     def get_step_actions(self, state, x, y, offsets):
         player = state.current_player
         actions = []
@@ -578,6 +678,9 @@ class SimpleChessForwardModel(
 
         return actions
 
+
+    # Genera movimientos deslizantes para alfil, torre y dama.
+    # La pieza avanza en una dirección hasta encontrar un obstáculo.
     def get_sliding_actions(
         self,
         state,
@@ -626,6 +729,9 @@ class SimpleChessForwardModel(
 
         return actions
 
+
+    # Aplica una jugada de forma interna sin recalcular su legalidad.
+    # Es necesaria para simular posibles movimientos durante el jaque.
     def apply_action_without_validation(
         self,
         state: SimpleChessGameState,
@@ -638,6 +744,7 @@ class SimpleChessForwardModel(
         Este método se utiliza internamente para simular movimientos
         al comprobar si el rey queda en jaque.
         """
+        # Se recupera la pieza antes de vaciar su casilla de origen.
         moving_piece = state.get(
             action.from_x,
             action.from_y
@@ -682,6 +789,8 @@ class SimpleChessForwardModel(
                 state.current_player
             )
 
+
+    # Aplica una acción legal al estado real y comprueba el final.
     def advance(
         self,
         state: SimpleChessGameState,
@@ -696,6 +805,7 @@ class SimpleChessForwardModel(
         if action.player != state.current_player:
             raise ValueError("Turno inválido.")
 
+        # Se valida contra la lista completa de movimientos legales.
         legal_actions = self.compute_available_actions(state)
 
         if action not in legal_actions:
@@ -716,6 +826,7 @@ class SimpleChessForwardModel(
                 "La partida termina por jaque mate."
             )
 
+        # Una vez validada, la acción puede aplicarse al estado real.
         self.apply_action_without_validation(
             state,
             action,
@@ -743,6 +854,8 @@ class SimpleChessForwardModel(
             state.is_terminal = True
             state.winner = None
 
+
+    # Convierte victoria, derrota o empate en una puntuación numérica.
     def evaluate_terminal(
         self,
         state: SimpleChessGameState,
@@ -758,6 +871,12 @@ class SimpleChessForwardModel(
         return -self.WIN_SCORE + depth
 
 
+
+# ============================================================
+# FUNCIONES DE CONSOLA
+# ============================================================
+
+# Muestra el tablero y el estado del turno en formato legible.
 def print_board(state: SimpleChessGameState):
     print()
     print("=== AJEDREZ SIMPLIFICADO ===")
@@ -801,6 +920,9 @@ def print_board(state: SimpleChessGameState):
     print()
 
 
+
+# Convierte una casilla escrita por el usuario, como 'e2',
+# en coordenadas internas (x, y).
 def parse_square(square: str) -> tuple[int, int]:
     square = square.strip().lower()
 
@@ -817,11 +939,17 @@ def parse_square(square: str) -> tuple[int, int]:
     )
 
 
+
+# Convierte coordenadas internas en notación de casilla, como 'e2'.
 def square_name(x: int, y: int) -> str:
     return f"{chr(ord('a') + x)}{8 - y}"
 
 
+
+# Lee movimientos del usuario hasta recibir uno con formato y reglas válidas.
 def read_human_move(state: SimpleChessGameState):
+    # El mismo forward model que usa la IA se reutiliza para validar
+    # los movimientos escritos por el jugador humano.
     model = SimpleChessForwardModel()
     actions = model.compute_available_actions(state)
 

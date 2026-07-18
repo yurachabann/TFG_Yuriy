@@ -413,6 +413,8 @@ def run_full_ai_tournament():
     runner = TournamentRunner(
         game_registry=GAMES,
         algorithm_registry=ALL_ALGORITHMS,
+        heuristics_by_game=HEURISTICS_BY_GAME,
+        algorithms_requiring_heuristic=ALGORITHMS_REQUIRING_HEURISTIC,
         results_file=results_file,
         move_timeout_seconds=move_timeout_seconds,
         match_timeout_seconds=match_timeout_seconds,

@@ -1,20 +1,9 @@
 from generic.heuristic import Heuristic
 
-from juegos.simple_chess.simple_chess import (
-    SimpleChessGameState,
-    SimpleChessForwardModel,
-    EMPTY,
-    PAWN,
-    KNIGHT,
-    BISHOP,
-    ROOK,
-    QUEEN,
-    KING,
-    piece_player,
-    piece_type,
-    other_player
-)
-
+from juegos.simple_chess.game_state import SimpleChessGameState
+from juegos.simple_chess.forward_model import SimpleChessForwardModel
+from juegos.simple_chess.constants import EMPTY, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
+from juegos.simple_chess.helpers import piece_symbol, piece_player, other_player, piece_type
 
 class SimpleChessHeuristic(Heuristic[SimpleChessGameState]):
     """Valora material, movilidad y control del centro."""

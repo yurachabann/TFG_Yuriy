@@ -1,14 +1,10 @@
 from core.game import Game
 
-from juegos.simple_chess.simple_chess import (
-    SimpleChessGameState,
-    SimpleChessForwardModel,
-    MovePieceAction,
-    print_board,
-    read_human_move,
-    square_name
-)
-
+from .game_state import SimpleChessGameState
+from .forward_model import SimpleChessForwardModel
+from .actions import MovePieceAction
+from .console import print_board, read_human_move
+from .helpers import square_name
 
 class SimpleChessGame(Game):
     """Integra el ajedrez simplificado con el framework."""

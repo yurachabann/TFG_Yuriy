@@ -19,15 +19,18 @@
         """
 
 from generic.heuristic import Heuristic
-from juegos.checkers.checkers import (
-    CheckersGameState,
+from juegos.checkers.constants import (
     EMPTY,
     P1_MAN,
     P2_MAN,
+)
+
+from juegos.checkers.helpers import (
     owner_of,
     other_player,
 )
 
+from juegos.checkers.game_state import CheckersGameState;
 
 class CheckersCombinedHeuristic(Heuristic[CheckersGameState]):
 

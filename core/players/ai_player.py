@@ -36,14 +36,19 @@ class AIPlayer(Player):
         Pide una acción al algoritmo.
 
         Convención esperada:
-            algorithm_fn(state, model, ai_player, **params) -> (action, stats)
-
-        Si algorithm_params está vacío, no pasa nada.
+            algorithm_fn(state_or_info_state, model, ai_player, **params) -> (action, stats)
         """
         model = game.create_model()
 
+        # Si el modelo soporta información imperfecta (tiene create_information_state),
+        # le pasamos la vista reducida del estado correspondiente a este jugador.
+        if hasattr(model, "create_information_state"):
+            input_state = model.create_information_state(state, self.player_id)
+        else:
+            input_state = state
+
         return self.algorithm_fn(
-            state,
+            input_state,
             model,
             self.player_id,
             **self.algorithm_params

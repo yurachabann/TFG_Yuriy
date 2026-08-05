@@ -1,23 +1,25 @@
 from abc import abstractmethod
+from typing import Generic, TypeVar
 
 from generic.forward_model import ForwardModel
 
+# Definimos las variables de tipo para el Estado, Acción e InformationState
+S = TypeVar("S")
+A = TypeVar("A")
+I = TypeVar("I")
 
-class ImperfectForwardModel(ForwardModel):
+
+class ImperfectForwardModel(ForwardModel[S, A], Generic[S, A, I]):
     """
     Forward model para juegos de información imperfecta.
-
-    Además de la funcionalidad de un ForwardModel convencional,
-    permite generar el estado observable y realizar
-    determinizaciones del juego.
     """
 
     @abstractmethod
     def create_information_state(
         self,
-        state,
-        player_id
-    ):
+        state: S,
+        player_id: int
+    ) -> I:
         """
         Devuelve la información observable por el jugador.
         """
@@ -26,8 +28,8 @@ class ImperfectForwardModel(ForwardModel):
     @abstractmethod
     def determinize(
         self,
-        information_state
-    ):
+        information_state: I
+    ) -> S:
         """
         Genera un estado completo compatible con la información
         conocida por el jugador.

@@ -8,16 +8,17 @@ from juegos.four_in_line.game import Connect4Game
 from juegos.checkers.game import CheckersGame
 from juegos.love_letter.game import LoveLetterGame
 from juegos.simple_chess.game import SimpleChessGame
+from juegos.love_letter.game import LoveLetterGame
 
 from algoritmos.minmax import choose_ai_move
 from algoritmos.minmax_ab import choose_ai_move_alpha_beta
 from algoritmos.minmax_ab_depth_limit import choose_ai_move_alpha_beta_depth_limit
 from algoritmos.mcts import choose_ai_move_mcts
 from algoritmos.mcts_max_depth import choose_ai_move_mcts_max_depth
+from algoritmos.ismcts import choose_ai_move_ismcts
 
 from heuristics.checkers.combined_heuristic import CheckersCombinedHeuristic
 from heuristics.four_in_line.connect_four_heuristic import ConnectFourHeuristic
-from heuristics.love_letter.love_letter_memory_heuristic import LoveLetterMemoryHeuristic
 from heuristics.simple_chess.simple_chess_heuristic import SimpleChessHeuristic
 
 
@@ -30,7 +31,8 @@ GAMES = {
     "2": Connect4Game,
     "3": CheckersGame,
     "4": LoveLetterGame,
-    "5": SimpleChessGame
+    "5": SimpleChessGame,
+    "6": LoveLetterGame
 }
 
 
@@ -55,12 +57,6 @@ HEURISTICS_BY_GAME = {
         }
     },
     "4": {
-        "1": {
-            "name": "Heurística de Love Letter",
-            "instance": LoveLetterMemoryHeuristic(),
-        }
-    },
-    "5": {
         "1": {
             "name": "Heurística del ajedrez simplificado",
             "instance": SimpleChessHeuristic(),
@@ -112,7 +108,15 @@ ALL_ALGORITHMS = {
             "iterations": 1000,
             "max_rollout_depth": 20
         }
-    }
+    },
+    "7": {
+        "name": "ISMCTS (1000 iter)",
+        "fn": choose_ai_move_ismcts,
+        "params": {
+            "iterations": 1000,
+            "exploration_weight": 1.414  # O math.sqrt(2)
+        }
+    },
 }
 
 
@@ -124,7 +128,7 @@ def choose_main_option():
     while True:
         print("\n=== MENÚ PRINCIPAL ===")
         print("1. Ejecutar partida normal")
-        print("2. Ejecutar todas las IAs contra todas y guardar results.json")
+        print("2. Ejecutar todas las IAs contra todas y guardar los resultados en results.json")
         print("0. Salir")
 
         option = input("Opción: ").strip()
@@ -147,6 +151,7 @@ def choose_game():
         print("3. Las damas")
         print("4. Love Letter")
         print("5. Ajedrez simplificado")
+        print("6. LoveLetter")
 
         option = input("Opción: ").strip()
 

@@ -1,5 +1,4 @@
 import random
-
 from generic.imperfect.forward_model import ImperfectForwardModel
 from .actions import PlayCardAction
 from .cards import DECK_COMPOSITION, Card
@@ -12,24 +11,43 @@ class LoveLetterForwardModel(
         LoveLetterGameState, PlayCardAction, LoveLetterInformationState
     ]
 ):
+    """
+    Modelo de avance (Forward Model) para Love Letter bajo un entorno de Información Imperfecta.
+    Gestiona las reglas, transiciones de estado, generación de acciones válidas y 
+    la determinización.
+    """
 
     def setup_game(self, state: LoveLetterGameState) -> None:
+        """
+        Inicializa una partida real de Love Letter:
+        1. Copia y baraja el mazo completo de 16 cartas.
+        2. Retira una carta boca abajo (removed_card) según la regla oficial.
+        3. Reparte 1 carta inicial a cada jugador.
+        4. Otorga una 2ª carta al primer jugador para iniciar su turno.
+        """
         deck = DECK_COMPOSITION.copy()
         random.shuffle(deck)
 
+        # Regla Love Letter: Se aparta 1 carta en secreto al inicio de la ronda
         state.removed_card = deck.pop()
 
-        # Asignar 1 carta a los jugadores 1 y 2
+        # Reparto inicial: 1 carta oculta por jugador
         for p in range(1, state.num_players + 1):
             state.hands[p] = [deck.pop()]
 
         state.deck = deck
-        state.current_player = 1  # El primer jugador es el 1
+        state.current_player = 1
+        
+        # El jugador inicial roba del mazo para comenzar teniendo 2 cartas
         state.hands[1].append(state.deck.pop())
 
     def create_information_state(
         self, state: LoveLetterGameState, player_id: int
     ) -> LoveLetterInformationState:
+        """
+        Filtra el estado global para crear la vista observada por un jugador específico.
+        Solo expone la mano propia y la información pública (descartes, eliminados, etc.).
+        """
         return LoveLetterInformationState(
             observer_id=player_id,
             hand=state.hands[player_id].copy(),
@@ -45,9 +63,17 @@ class LoveLetterForwardModel(
     def determinize(
         self, info_state: LoveLetterInformationState
     ) -> LoveLetterGameState:
+        """
+        Genera un mundo hipotético (estado completo simétrico) para el MCTS / ISMCTS:
+        1. Preserva todo el conocimiento público y la mano real de la IA observadora.
+        2. Reconstruye el pool de cartas no vistas (mazo + manos enemigas + carta retirada).
+        3. Mezcla las cartas no vistas y las reparte aleatoriamente entre los rivales activos.
+        """
         det_state = LoveLetterGameState(
             num_players=len(info_state.eliminated)
         )
+        
+        # Copia de variables públicas visibles por todos
         det_state.played_cards = {
             p: list(c) for p, c in info_state.played_cards.items()
         }
@@ -55,30 +81,40 @@ class LoveLetterForwardModel(
         det_state.eliminated = info_state.eliminated.copy()
         det_state.current_player = info_state.current_player
 
+        # 1. Identificar las cartas 100% conocidas por la IA
         known_pool = list(info_state.hand)
         for p_cards in info_state.played_cards.values():
             known_pool.extend(p_cards)
 
+        # 2. Calcular las cartas que siguen ocultas (Mazo + Carta Retirada + Manos Enemigas)
         unknown_pool = DECK_COMPOSITION.copy()
         for card in known_pool:
             unknown_pool.remove(card)
 
+        # 3. Barajar el conocimiento no observado para simular una hipótesis de partida
         random.shuffle(unknown_pool)
 
+        # Asignar la mano propia real al observador
         det_state.hands[info_state.observer_id] = list(info_state.hand)
 
+        # 4. Repartir cartas a ciegas a los oponentes vivos
         for p in range(1, det_state.num_players + 1):
             if p == info_state.observer_id:
                 continue
             if not info_state.eliminated[p]:
+                # Si le toca jugar al rival en la simulación necesita 2 cartas; si no, 1.
                 cards_needed = 2 if p == info_state.current_player else 1
                 det_state.hands[p] = [
                     unknown_pool.pop() for _ in range(cards_needed)
+                    if unknown_pool
                 ]
 
+        # 5. La última carta sobrante pasa a ser la carta retirada inicial
         det_state.removed_card = (
             unknown_pool.pop() if unknown_pool else None
         )
+        
+        # El resto de cartas no vistas conforman el mazo de robar del mundo simulado
         det_state.deck = unknown_pool
 
         return det_state
@@ -86,6 +122,12 @@ class LoveLetterForwardModel(
     def compute_available_actions(
         self, state: LoveLetterGameState
     ) -> list[PlayCardAction]:
+        """
+        Calcula todas las decisiones legales que puede tomar el jugador del turno actual:
+        - Aplica restricciones obligatorias (Regla de la Condesa).
+        - Filtra objetivos válidos (excluye jugadores eliminados o protegidos por la Doncella).
+        - Genera combinaciones de cartas, objetivos y adivinanzas del Guardia.
+        """
         if state.is_terminal:
             return []
 
@@ -93,33 +135,37 @@ class LoveLetterForwardModel(
         hand = state.hands[p]
         actions = []
 
-        # Regla de la Condesa: Obligada a jugarse si hay Rey o Príncipe en mano
+        # REGLA OBLIGATORIA CONDESA: Si se tiene Condesa + Rey o Condesa + Príncipe, se debe jugar la Condesa
         if Card.COUNTESS in hand and (
             Card.KING in hand or Card.PRINCE in hand
         ):
             return [PlayCardAction(card=Card.COUNTESS, player=p)]
 
-        # Objetivos válidos en base 1 (no eliminados y no protegidos)
+        # Lista de jugadores a los que se puede apuntar (activos y sin la protección de la Doncella)
         valid_targets = [
             i
             for i in range(1, state.num_players + 1)
             if not state.eliminated[i] and not state.protected[i]
         ]
 
+        # Analizar cada carta única presente en la mano actual
         for card in set(hand):
             if card == Card.GUARD:
+                # El Guardia no puede apuntarse a uno mismo
                 targets = [t for t in valid_targets if t != p]
                 for target in targets:
+                    # Debe adivinar un valor entre 2 (Sacerdote) y 8 (Princesa)
                     for guess in range(2, 9):
                         actions.append(
                             PlayCardAction(
                                 card=Card.GUARD,
                                 player=p,
                                 target=target,
-                                guess=guess,  # Homogéneo con input humano
+                                guess=guess,
                             )
                         )
             elif card in (Card.PRIEST, Card.BARON, Card.KING):
+                # Cartas que requieren un objetivo rival
                 targets = [t for t in valid_targets if t != p]
                 if targets:
                     for target in targets:
@@ -127,11 +173,12 @@ class LoveLetterForwardModel(
                             PlayCardAction(card=card, player=p, target=target)
                         )
                 else:
-                    # Si todos están protegidos, se descarte sin efecto
+                    # Si todos los rivales están protegidos/eliminados, se descarte sin efecto
                     actions.append(
                         PlayCardAction(card=card, player=p, target=None)
                     )
             elif card == Card.PRINCE:
+                # El Príncipe puede jugarse sobre uno mismo (incluso si estás protegido) o sobre rivales vulnerables
                 for target in range(1, state.num_players + 1):
                     if not state.eliminated[target] and (
                         target == p or not state.protected[target]
@@ -140,8 +187,10 @@ class LoveLetterForwardModel(
                             PlayCardAction(card=card, player=p, target=target)
                         )
             elif card in (Card.HANDMAID, Card.COUNTESS, Card.PRINCESS):
+                # Cartas sin objetivo hacia otros jugadores
                 actions.append(PlayCardAction(card=card, player=p))
 
+        # Fallback de seguridad: Si por algún motivo no hay acciones válidas, descartar la primera carta
         return (
             actions
             if actions
@@ -151,17 +200,24 @@ class LoveLetterForwardModel(
     def advance(
         self, state: LoveLetterGameState, action: PlayCardAction
     ) -> None:
+        """
+        Ejecuta la jugada, resuelve los efectos de las cartas, comprueba
+        si la partida finaliza y avanza el turno/roba carta si continúa el juego.
+        """
         p = state.current_player
         card = action.card
 
+        # Mover la carta jugada de la mano a la pila de descartes públicos
         state.hands[p].remove(card)
         state.played_cards[p].append(card)
+        
+        # Jugar cualquier carta retira la protección de la Doncella conseguida en el turno anterior
         state.protected[p] = False
 
         target = action.target
 
         # -------------------------------------------------------------
-        # RESOLUCIÓN DE EFECTOS Y REGISTRO DE EVENTO
+        # RESOLUCIÓN DE EFECTOS INDIVIDUALES DE LAS CARTAS
         # -------------------------------------------------------------
         if card == Card.GUARD:
             if target is not None and action.guess is not None:
@@ -172,22 +228,23 @@ class LoveLetterForwardModel(
                 )
                 guess_name = guess_card.name
 
+                # Acierto: Elimina al objetivo
                 if guess_card in state.hands[target]:
                     state.eliminated[target] = True
                     state.last_action_summary = (
-                        f"🎯 Jugador {p} jugó GUARD adivinando '{guess_name}' -> 💥 ¡ACERTÓ! Jugador {target} ha sido ELIMINADO"
+                        f"🎯 Jugador {p} jugó GUARD adivinando '{guess_name}' -> 💥 ¡ACERTÓ! Jugador {target} ELIMINADO"
                     )
                 else:
                     state.last_action_summary = (
                         f"🎯 Jugador {p} jugó GUARD adivinando '{guess_name}' -> ❌ FALLÓ"
                     )
             else:
-                state.last_action_summary = f"Jugador {p} descartó GUARD sin objetivo (protegidos)"
+                state.last_action_summary = f"Jugador {p} descartó GUARD sin objetivo"
 
         elif card == Card.PRIEST:
             if target is not None:
                 state.last_action_summary = (
-                    f"Jugador {p} jugó PRIEST y miró en secreto la mano del Jugador {target}"
+                    f"Jugador {p} jugó PRIEST y miró la mano del Jugador {target}"
                 )
             else:
                 state.last_action_summary = f"Jugador {p} descartó PRIEST sin efecto"
@@ -196,50 +253,58 @@ class LoveLetterForwardModel(
             if target is not None:
                 my_card = state.hands[p][0]
                 target_card = state.hands[target][0]
+                # Compara en secreto los valores de las manos
                 if my_card.value > target_card.value:
                     state.eliminated[target] = True
                     state.last_action_summary = (
-                        f"Jugador {p} jugó BARON (tenía {my_card.name}) y ganó el duelo contra Jugador {target} ({target_card.name}) -> 💥 Jugador {target} ELIMINADO"
+                        f"Jugador {p} jugó BARON ({my_card.name}) y eliminó a Jugador {target} ({target_card.name})"
                     )
                 elif target_card.value > my_card.value:
                     state.eliminated[p] = True
                     state.last_action_summary = (
-                        f"Jugador {p} jugó BARON (tenía {my_card.name}) y perdió el duelo contra Jugador {target} ({target_card.name}) -> 💀 Jugador {p} ELIMINADO"
+                        f"Jugador {p} jugó BARON ({my_card.name}) y fue eliminado por Jugador {target} ({target_card.name})"
                     )
                 else:
                     state.last_action_summary = (
-                        f"Jugador {p} jugó BARON y empató en el duelo contra Jugador {target} (ambos tenían {my_card.name})"
+                        f"Jugador {p} jugó BARON y empató con Jugador {target}"
                     )
             else:
                 state.last_action_summary = f"Jugador {p} descartó BARON sin efecto"
 
         elif card == Card.HANDMAID:
+            # Concede inmunidad al jugador hasta su siguiente turno
             state.protected[p] = True
-            state.last_action_summary = f"Jugador {p} jugó HANDMAID (Se protege este turno)"
+            state.last_action_summary = f"Jugador {p} jugó HANDMAID"
 
         elif card == Card.PRINCE:
             if target is not None:
+                # Obliga a descartar la mano actual
                 discarded = state.hands[target].pop()
                 state.played_cards[target].append(discarded)
 
+                # Si el jugador se ve obligado a descartar la Princesa, cae eliminado inmediatamente
                 if discarded == Card.PRINCESS:
                     state.eliminated[target] = True
                     state.last_action_summary = (
-                        f"Jugador {p} obligó a Jugador {target} a descartar {discarded.name} -> 💥 ¡Jugador {target} ELIMINADO!"
+                        f"Jugador {p} obligó a Jugador {target} a descartar PRINCESS -> 💥 ¡ELIMINADO!"
                     )
                 else:
+                    # Roba una nueva carta del mazo. Si no quedan, roba la carta apartada al inicio.
                     if state.deck:
                         state.hands[target].append(state.deck.pop())
-                    else:
+                    elif state.removed_card is not None:
                         state.hands[target].append(state.removed_card)
+                        state.removed_card = None
+
                     state.last_action_summary = (
-                        f"Jugador {p} obligó a Jugador {target} a descartar {discarded.name} y robar otra carta"
+                        f"Jugador {p} obligó a Jugador {target} a descartar {discarded.name} y robar otra"
                     )
             else:
                 state.last_action_summary = f"Jugador {p} descartó PRINCE sin efecto"
 
         elif card == Card.KING:
             if target is not None:
+                # Intercambia las manos entre el jugador del turno y el objetivo
                 state.hands[p], state.hands[target] = (
                     state.hands[target],
                     state.hands[p],
@@ -254,39 +319,47 @@ class LoveLetterForwardModel(
             state.last_action_summary = f"Jugador {p} descartó COUNTESS"
 
         elif card == Card.PRINCESS:
+            # Descartar voluntaria o involuntariamente a la Princesa provoca la eliminación del jugador
             state.eliminated[p] = True
             state.last_action_summary = f"Jugador {p} descartó PRINCESS y quedó ELIMINADO"
 
         # -------------------------------------------------------------
-        # COMPROBACIÓN DE CONDICIONES DE FIN DE PARTIDA
+        # EVALUACIÓN DE FIN DE PARTIDA Y CAMBIO DE TURNO
         # -------------------------------------------------------------
         active_players = [
             i for i in range(1, state.num_players + 1) if not state.eliminated[i]
         ]
 
+        # CONDICIÓN DE VICTORIA 1: Solo queda un jugador con vida en la ronda
         if len(active_players) == 1:
             state.is_terminal = True
             state.winner = active_players[0]
             return
 
-        if len(state.deck) == 0:
-            state.is_terminal = True
-            max_val = max(state.hands[x][0].value for x in active_players)
-            winners = [x for x in active_players if state.hands[x][0].value == max_val]
-            state.winner = winners[0] if len(winners) == 1 else None
-            return
-
-        # Avanzar turno (Base 1)
+        # Búsqueda del siguiente jugador activo (salta jugadores eliminados)
         next_p = 2 if state.current_player == 1 else 1
         while state.eliminated[next_p]:
             next_p = 2 if next_p == 1 else 1
 
-        state.current_player = next_p
-        state.hands[next_p].append(state.deck.pop())
+        # CONDICIÓN DE CONTINUIDAD / VICTORIA 2:
+        if len(state.deck) > 0:
+            # Si hay cartas en el mazo, avanza el turno y el nuevo jugador roba carta
+            state.current_player = next_p
+            state.hands[next_p].append(state.deck.pop())
+        else:
+            # Si el mazo se vacía, la ronda termina inmediatamente y gana la carta con mayor valor en mano (Showdown)
+            state.is_terminal = True
+            max_val = max(state.hands[x][0].value for x in active_players)
+            winners = [x for x in active_players if state.hands[x][0].value == max_val]
+            state.winner = winners[0] if len(winners) == 1 else None
 
     def evaluate_terminal(self, state: LoveLetterGameState, player_id: int) -> float:
+        """
+        Retorna la recompensa terminal para MCTS desde el punto de vista de `player_id`:
+         +1.0 si es el ganador.
+         -1.0 si perdió.
+          0.0 si hubo empate.
+        """
         if state.winner is None:
             return 0.0
-        if state.winner == player_id:
-            return 1.0
-        return -1.0
+        return 1.0 if state.winner == player_id else -1.0

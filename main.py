@@ -9,6 +9,7 @@ from juegos.checkers.game import CheckersGame
 from juegos.love_letter.game import LoveLetterGame
 from juegos.simple_chess.game import SimpleChessGame
 from juegos.love_letter.game import LoveLetterGame
+from juegos.battleship.game import BattleshipGame
 
 from algoritmos.minmax import choose_ai_move
 from algoritmos.minmax_ab import choose_ai_move_alpha_beta
@@ -16,6 +17,7 @@ from algoritmos.minmax_ab_depth_limit import choose_ai_move_alpha_beta_depth_lim
 from algoritmos.mcts import choose_ai_move_mcts
 from algoritmos.mcts_max_depth import choose_ai_move_mcts_max_depth
 from algoritmos.ismcts import choose_ai_move_ismcts
+from algoritmos.mccfr import choose_ai_move_mccfr_dynamic
 
 from heuristics.checkers.combined_heuristic import CheckersCombinedHeuristic
 from heuristics.four_in_line.connect_four_heuristic import ConnectFourHeuristic
@@ -32,7 +34,8 @@ GAMES = {
     "3": CheckersGame,
     "4": LoveLetterGame,
     "5": SimpleChessGame,
-    "6": LoveLetterGame
+    "6": LoveLetterGame,
+    "7": BattleshipGame
 }
 
 
@@ -117,6 +120,14 @@ ALL_ALGORITHMS = {
             "exploration_weight": 1.414  # O math.sqrt(2)
         }
     },
+    "8": {
+        "name": "MCCFR (5000 iter)",
+        "fn": choose_ai_move_mccfr_dynamic,
+        "params": {
+            "iterations": 5000,
+            "deterministic": False
+        }
+    },
 }
 
 
@@ -152,6 +163,7 @@ def choose_game():
         print("4. Love Letter")
         print("5. Ajedrez simplificado")
         print("6. LoveLetter")
+        print("7. Hundir la flota")
 
         option = input("Opción: ").strip()
 

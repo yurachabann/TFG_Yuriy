@@ -39,6 +39,6 @@ class LoveLetterGame(ImperfectGame):
 
     def print_ai_action(self, action: PlayCardAction):
         print(
-            f"IA (Jugador {action.player}) juega: {action.card.name}"
-            + (f" a Jugador {action.target}" if action.target is not None else "")
+          f"IA (Jugador {action.player}) juega: {action.card.name}"
+           + (f" a Jugador {action.target}" if action.target is not None else "")
         )

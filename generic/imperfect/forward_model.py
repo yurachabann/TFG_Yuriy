@@ -35,3 +35,18 @@ class ImperfectForwardModel(ForwardModel[S, A], Generic[S, A, I]):
         conocida por el jugador.
         """
         pass
+
+    def get_current_player(self, state: S) -> int:
+        """
+        Devuelve el ID del jugador al que le toca mover en el estado actual.
+        
+        Implementación por defecto: lee el atributo 'current_player' de GameState.
+        Se puede sobrescribir en clases hijas si el juego requiere una lógica especial.
+        """
+        if hasattr(state, "current_player"):
+            return state.current_player
+        
+        raise NotImplementedError(
+            "El estado recibido no tiene el atributo 'current_player'. "
+            "Debes implementar 'get_current_player' en tu ForwardModel."
+        )

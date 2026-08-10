@@ -27,6 +27,26 @@ class Match:
         self.state = self.game.create_state()
         self.model = self.game.create_model()
 
+        # ============================================================
+        # PRE-ENTRENAMIENTO (Si hay algún jugador MCCFR)
+        # ============================================================
+        self._warmup_mccfr_if_needed()
+
+    def _warmup_mccfr_if_needed(self):
+        """
+        Si alguno de los jugadores usa MCCFR, entrena el agente en el
+        estado raíz inicial (antes de que nadie haga ningún movimiento).
+        """
+        for player in self.players.values():
+            if player.is_ai() and "mccfr" in getattr(player.algorithm_fn, "__name__", ""):
+                # Generamos el estado de información inicial del juego
+                initial_info = self.model.create_information_state(
+                    self.state, 
+                    player_id=player.player_id
+                )
+                # Forzamos el entrenamiento al inicio
+                player.algorithm_fn(initial_info, self.model, **player.algorithm_params)
+
     def run(self, match_number: int = 1):
         """
         Ejecuta la partida completa y devuelve el estado final.

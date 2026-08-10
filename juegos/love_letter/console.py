@@ -36,31 +36,7 @@ def print_board(state: LoveLetterGameState, debug_mode: bool = True):
             
     print("==========================================================")
 
-def print_boarrd(state: LoveLetterGameState):
-    """Muestra el estado visual general de la partida."""
-    print("\n=================== ESTADO DEL TABLERO ===================")
-    
-    # Muestra la adivinanza o evento del último turno (humano o IA)
-    if getattr(state, "last_action_summary", None):
-        print(f"📢 ÚLTIMA JUGADA: {state.last_action_summary}")
-        print("----------------------------------------------------------")
 
-    print(f"📦 Mazo restante: {len(state.deck)} cartas")
-    print(f"🎯 Turno actual: Jugador {state.current_player}")
-    print("----------------------------------------------------------")
-
-    for p in range(1, state.num_players + 1):
-        status = (
-            "💀 ELIMINADO"
-            if state.eliminated[p]
-            else ("🛡️ PROTEGIDO" if state.protected[p] else "🟢 ACTIVO")
-        )
-        played = [f"{c.name}({c.value})" for c in state.played_cards[p]]
-        hand_count = len(state.hands[p])
-        print(
-            f"  Jugador {p} [{status}]: {hand_count} carta(s) en mano | Descartes: {played}"
-        )
-    print("==========================================================\n")
 
 
 def print_action_summary(action, state_before: LoveLetterGameState):

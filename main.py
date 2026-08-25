@@ -8,7 +8,6 @@ from juegos.four_in_line.game import Connect4Game
 from juegos.checkers.game import CheckersGame
 from juegos.love_letter.game import LoveLetterGame
 from juegos.simple_chess.game import SimpleChessGame
-from juegos.love_letter.game import LoveLetterGame
 from juegos.battleship.game import BattleshipGame
 
 from algoritmos.minmax import choose_ai_move
@@ -34,8 +33,7 @@ GAMES = {
     "3": CheckersGame,
     "4": LoveLetterGame,
     "5": SimpleChessGame,
-    "6": LoveLetterGame,
-    "7": BattleshipGame
+    "6": BattleshipGame
 }
 
 
@@ -59,7 +57,7 @@ HEURISTICS_BY_GAME = {
             "instance": CheckersCombinedHeuristic(),
         }
     },
-    "4": {
+    "5": {
         "1": {
             "name": "Heurística del ajedrez simplificado",
             "instance": SimpleChessHeuristic(),
@@ -80,7 +78,7 @@ ALGORITHMS_REQUIRING_HEURISTIC = (
 
 ALL_ALGORITHMS = {
     "1": {
-        "name": "Minimax",
+        "name": "MinMax",
         "fn": choose_ai_move,
         "params": {}
     },
@@ -129,7 +127,24 @@ ALL_ALGORITHMS = {
         }
     },
 }
+# =========================
+# GRUPOS PARA EL TORNEO
+# =========================
 
+TOURNAMENT_GROUPS = {
+    "perfect_information": {
+        "name": "Juegos de información perfecta",
+        # "game_keys": ("1", "2", "3", "5"),
+        # "game_keys": ("2",),  # Temporalmente solo 4 en raya
+        "game_keys": ("3",),  # Temporalmente solo Damas
+        "algorithm_keys": ("1", "2", "3", "4", "5", "6"),
+    },
+    # "imperfect_information": {
+    #     "name": "Juegos de información imperfecta",
+    #     "game_keys": ("4", "6"),
+    #     "algorithm_keys": ("7", "8"),
+    # },
+}
 
 # =========================
 # MENÚS
@@ -162,8 +177,7 @@ def choose_game():
         print("3. Las damas")
         print("4. Love Letter")
         print("5. Ajedrez simplificado")
-        print("6. LoveLetter")
-        print("7. Hundir la flota")
+        print("6. Hundir la flota")
 
         option = input("Opción: ").strip()
 
@@ -428,14 +442,34 @@ def run_full_ai_tournament():
     )
 
     runner = TournamentRunner(
-        game_registry=GAMES,
-        algorithm_registry=ALL_ALGORITHMS,
+        # game_registry=GAMES,
+        game_registry={
+            # "1": GAMES["1"],
+            # "2": GAMES["2"],  # Temporalmente solo 4 en raya
+            "3": GAMES["3"],  # Temporalmente solo Damas
+            # "4": GAMES["4"],
+            # "5": GAMES["5"],
+            # "6": GAMES["6"]
+        },
+        # algorithm_registry=ALL_ALGORITHMS,
+        algorithm_registry={
+            #"1": ALL_ALGORITHMS["1"],
+            #"2": ALL_ALGORITHMS["2"],
+            "3": ALL_ALGORITHMS["3"],
+            "4": ALL_ALGORITHMS["4"],
+            "5": ALL_ALGORITHMS["5"],
+            "6": ALL_ALGORITHMS["6"],
+            # "7": ALL_ALGORITHMS["7"],
+            # "8": ALL_ALGORITHMS["8"]
+        },
+        # tournament_groups=TOURNAMENT_GROUPS,
         heuristics_by_game=HEURISTICS_BY_GAME,
         algorithms_requiring_heuristic=ALGORITHMS_REQUIRING_HEURISTIC,
         results_file=results_file,
         move_timeout_seconds=move_timeout_seconds,
         match_timeout_seconds=match_timeout_seconds,
-        play_both_orders=True
+        play_both_orders=True,
+        save_decisions=True
     )
 
     runner.run_all()

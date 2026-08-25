@@ -56,6 +56,17 @@ class LoveLetterForwardModel(
             },
             protected=state.protected.copy(),
             eliminated=state.eliminated.copy(),
+            known_cards={
+                observer: known.copy()
+                for observer, known in state.known_cards.items()
+            },
+            excluded_cards={
+                observer: {
+                    target: sorted(cards, key=lambda c: c.value)
+                    for target, cards in excluded.items()
+                }
+                for observer, excluded in state.excluded_cards.items()
+            },
             deck_count=len(state.deck),
             current_player=state.current_player,
         )
@@ -80,11 +91,29 @@ class LoveLetterForwardModel(
         det_state.protected = info_state.protected.copy()
         det_state.eliminated = info_state.eliminated.copy()
         det_state.current_player = info_state.current_player
+        det_state.known_cards = {
+            observer: known.copy()
+            for observer, known in info_state.known_cards.items()
+        }
+        det_state.excluded_cards = {
+            observer: {
+                target: set(cards)
+                for target, cards in excluded.items()
+            }
+            for observer, excluded in info_state.excluded_cards.items()
+        }
 
         # 1. Identificar las cartas 100% conocidas por la IA
         known_pool = list(info_state.hand)
         for p_cards in info_state.played_cards.values():
             known_pool.extend(p_cards)
+        for p, known_card in info_state.known_cards[info_state.observer_id].items():
+            if (
+                p != info_state.observer_id
+                and not info_state.eliminated[p]
+                and known_card is not None
+            ):
+                known_pool.append(known_card)
 
         # 2. Calcular las cartas que siguen ocultas (Mazo + Carta Retirada + Manos Enemigas)
         unknown_pool = DECK_COMPOSITION.copy()
@@ -104,10 +133,35 @@ class LoveLetterForwardModel(
             if not info_state.eliminated[p]:
                 # Si le toca jugar al rival en la simulación necesita 2 cartas; si no, 1.
                 cards_needed = 2 if p == info_state.current_player else 1
-                det_state.hands[p] = [
-                    unknown_pool.pop() for _ in range(cards_needed)
-                    if unknown_pool
-                ]
+                known_card = info_state.known_cards[info_state.observer_id].get(p)
+                excluded = set(
+                    info_state.excluded_cards[info_state.observer_id].get(p, [])
+                )
+
+                if known_card is not None:
+                    # La carta conocida representa la carta que el rival ya conservaba antes de robar.
+                    det_state.hands[p].append(known_card)
+                    cards_needed -= 1
+                elif excluded:
+                    # Las exclusiones del Guardia se aplican a la carta que ya tenía el rival,
+                    # no a una segunda carta desconocida que acaba de robar en su turno.
+                    candidates = [
+                        card for card in unknown_pool
+                        if card not in excluded
+                    ]
+                    if not candidates:
+                        raise ValueError(
+                            f"No existe una determinización compatible para el Jugador {p}."
+                        )
+                    selected_card = random.choice(candidates)
+                    unknown_pool.remove(selected_card)
+                    det_state.hands[p].append(selected_card)
+                    cards_needed -= 1
+
+                for _ in range(cards_needed):
+                    selected_card = random.choice(unknown_pool)
+                    unknown_pool.remove(selected_card)
+                    det_state.hands[p].append(selected_card)
 
         # 5. La última carta sobrante pasa a ser la carta retirada inicial
         det_state.removed_card = (
@@ -208,6 +262,7 @@ class LoveLetterForwardModel(
         card = action.card
 
         # Mover la carta jugada de la mano a la pila de descartes públicos
+        self._update_knowledge_after_play(state, p, card)
         state.hands[p].remove(card)
         state.played_cards[p].append(card)
         
@@ -231,10 +286,12 @@ class LoveLetterForwardModel(
                 # Acierto: Elimina al objetivo
                 if guess_card in state.hands[target]:
                     state.eliminated[target] = True
+                    self._discard_eliminated_hand(state, target)
                     state.last_action_summary = (
                         f"🎯 Jugador {p} jugó GUARD adivinando '{guess_name}' -> 💥 ¡ACERTÓ! Jugador {target} ELIMINADO"
                     )
                 else:
+                    state.excluded_cards[p][target].add(guess_card)
                     state.last_action_summary = (
                         f"🎯 Jugador {p} jugó GUARD adivinando '{guess_name}' -> ❌ FALLÓ"
                     )
@@ -243,6 +300,8 @@ class LoveLetterForwardModel(
 
         elif card == Card.PRIEST:
             if target is not None:
+                state.known_cards[p][target] = state.hands[target][0]
+                state.excluded_cards[p][target].clear()
                 state.last_action_summary = (
                     f"Jugador {p} jugó PRIEST y miró la mano del Jugador {target}"
                 )
@@ -253,14 +312,20 @@ class LoveLetterForwardModel(
             if target is not None:
                 my_card = state.hands[p][0]
                 target_card = state.hands[target][0]
+                state.known_cards[p][target] = target_card
+                state.known_cards[target][p] = my_card
+                state.excluded_cards[p][target].clear()
+                state.excluded_cards[target][p].clear()
                 # Compara en secreto los valores de las manos
                 if my_card.value > target_card.value:
                     state.eliminated[target] = True
+                    self._discard_eliminated_hand(state, target)
                     state.last_action_summary = (
                         f"Jugador {p} jugó BARON ({my_card.name}) y eliminó a Jugador {target} ({target_card.name})"
                     )
                 elif target_card.value > my_card.value:
                     state.eliminated[p] = True
+                    self._discard_eliminated_hand(state, p)
                     state.last_action_summary = (
                         f"Jugador {p} jugó BARON ({my_card.name}) y fue eliminado por Jugador {target} ({target_card.name})"
                     )
@@ -281,6 +346,7 @@ class LoveLetterForwardModel(
                 # Obliga a descartar la mano actual
                 discarded = state.hands[target].pop()
                 state.played_cards[target].append(discarded)
+                self._clear_player_knowledge(state, target)
 
                 # Si el jugador se ve obligado a descartar la Princesa, cae eliminado inmediatamente
                 if discarded == Card.PRINCESS:
@@ -309,6 +375,11 @@ class LoveLetterForwardModel(
                     state.hands[target],
                     state.hands[p],
                 )
+                self._swap_player_knowledge(state, p, target)
+                state.known_cards[p][target] = state.hands[target][0]
+                state.known_cards[target][p] = state.hands[p][0]
+                state.excluded_cards[p][target].clear()
+                state.excluded_cards[target][p].clear()
                 state.last_action_summary = (
                     f"Jugador {p} jugó KING e intercambió su mano con Jugador {target}"
                 )
@@ -321,6 +392,7 @@ class LoveLetterForwardModel(
         elif card == Card.PRINCESS:
             # Descartar voluntaria o involuntariamente a la Princesa provoca la eliminación del jugador
             state.eliminated[p] = True
+            self._discard_eliminated_hand(state, p)
             state.last_action_summary = f"Jugador {p} descartó PRINCESS y quedó ELIMINADO"
 
         # -------------------------------------------------------------
@@ -352,6 +424,62 @@ class LoveLetterForwardModel(
             max_val = max(state.hands[x][0].value for x in active_players)
             winners = [x for x in active_players if state.hands[x][0].value == max_val]
             state.winner = winners[0] if len(winners) == 1 else None
+
+
+    def _update_knowledge_after_play(
+        self, state: LoveLetterGameState, player: int, card: Card
+    ) -> None:
+        for observer in range(1, state.num_players + 1):
+            if observer == player:
+                continue
+
+            known_card = state.known_cards[observer][player]
+            excluded = state.excluded_cards[observer][player]
+
+            if known_card is not None:
+                # Si juega una carta distinta de la conocida, necesariamente jugó la carta recién robada
+                # y la carta conocida sigue siendo la que conserva en la mano.
+                if known_card != card:
+                    continue
+
+                # Si juega la misma carta que conocíamos, ya no podemos saber si jugó la carta antigua
+                # o una copia igual recién robada, así que el conocimiento exacto deja de ser válido.
+                state.known_cards[observer][player] = None
+                excluded.clear()
+                continue
+
+            # Un Guardia fallido solo permite conservar la exclusión si la carta jugada estaba excluida:
+            # en ese caso sabemos que esa carta tuvo que ser la recién robada y conserva la carta antigua.
+            if card not in excluded:
+                excluded.clear()
+
+    def _clear_player_knowledge(
+        self, state: LoveLetterGameState, player: int
+    ) -> None:
+        for observer in range(1, state.num_players + 1):
+            state.known_cards[observer][player] = None
+            state.excluded_cards[observer][player].clear()
+
+    def _swap_player_knowledge(
+        self, state: LoveLetterGameState, player: int, target: int
+    ) -> None:
+        for observer in range(1, state.num_players + 1):
+            state.known_cards[observer][player], state.known_cards[observer][target] = (
+                state.known_cards[observer][target],
+                state.known_cards[observer][player],
+            )
+            state.excluded_cards[observer][player], state.excluded_cards[observer][target] = (
+                state.excluded_cards[observer][target],
+                state.excluded_cards[observer][player],
+            )
+
+    def _discard_eliminated_hand(
+        self, state: LoveLetterGameState, player: int
+    ) -> None:
+        while state.hands[player]:
+            state.played_cards[player].append(state.hands[player].pop())
+
+        self._clear_player_knowledge(state, player)
 
     def evaluate_terminal(self, state: LoveLetterGameState, player_id: int) -> float:
         """

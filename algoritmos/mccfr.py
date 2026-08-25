@@ -149,11 +149,9 @@ class MCCFRAgent(Generic[S, A, I]):
         """
         # 1. Caso base: Estado terminal alcanzado
         if state.is_terminal:
-            if state.winner is None:
-                return 0.0
-            return 1.0 if state.winner == traverser else -1.0
+            return self.model.evaluate_terminal(state, traverser)
 
-        current_player = getattr(state, "current_player", 0)
+        current_player = self.model.get_current_player(state)
         legal_actions = self.model.compute_available_actions(state)
 
         if not legal_actions:
@@ -201,8 +199,11 @@ class MCCFRAgent(Generic[S, A, I]):
             sampled_action = random.choices(actions, weights=probabilities, k=1)[0]
 
             # Acumula la frecuencia de la estrategia del oponente para el promedio
-            for a in legal_actions:
-                node.strategy_sum[a] += strategy[a]
+            num_players = getattr(state, "num_players", 2)
+            average_player = (traverser % num_players) + 1
+            if current_player == average_player:
+                for a in legal_actions:
+                    node.strategy_sum[a] += strategy[a]
 
             next_state = state.clone()
             self.model.advance(next_state, sampled_action)
@@ -221,8 +222,9 @@ class MCCFRAgent(Generic[S, A, I]):
         Alterna qué jugador asume el rol de explorador (traverser) en cada iteración.
         """
         for i in range(iterations):
-            traverser = i % num_players
             root_state = self.model.determinize(initial_info_state)
+            state_num_players = getattr(root_state, "num_players", num_players)
+            traverser = (i % state_num_players) + 1
             self.external_sampling_cfr(root_state, traverser, stats)
 
             if stats is not None:
@@ -260,6 +262,11 @@ def choose_ai_move_mccfr(
 
     node = agent.nodes[key]
     avg_strategy = node.get_average_strategy()
+
+    print("\n[MCCFR] Estrategia promedio aprendida:")
+    for action in legal_actions:
+        probability = avg_strategy.get(action, 0.0)
+        print(f"  {action} -> {probability:.2%}")
 
     if deterministic:
         # Modo determinista: Selecciona la acción con mayor probabilidad (argmax)
@@ -303,16 +310,25 @@ def choose_ai_move_mccfr_dynamic(
     deterministic = kwargs.get("deterministic", False)
 
     start_time = time.perf_counter()
+    iterations_this_call = 0
 
     # Entrenamiento bajo demanda (Lazy Initialisation por Tipo de Juego)
     if model_key not in _MCCFR_CACHE:
         print(f"\n[MCCFR] Entrenando agente para {model_key.__name__} ({iterations} iteraciones)...")
         agent = MCCFRAgent(model=model)
         agent.train(initial_info_state=info_state, iterations=iterations)
+        iterations_this_call += iterations
         _MCCFR_CACHE[model_key] = agent
         print("[MCCFR] ¡Entrenamiento completado con éxito!\n")
 
     agent = _MCCFR_CACHE[model_key]
+
+    key = _to_hashable(info_state)
+    if key not in agent.nodes:
+            print("[MCCFR DEBUG] Estado nuevo. Reentrenando...", flush=True)
+            agent.train(initial_info_state=info_state, iterations=iterations)
+            iterations_this_call += iterations
+            print("[MCCFR DEBUG] Reentrenamiento terminado.", flush=True)
 
     # Obtenemos la jugada y sus estadísticas
     action, stats = choose_ai_move_mccfr(
@@ -322,7 +338,7 @@ def choose_ai_move_mccfr_dynamic(
         deterministic=deterministic
     )
 
-    stats.iterations_completed = iterations
+    stats.iterations_completed = iterations_this_call
     stats.elapsed_time = time.perf_counter() - start_time
 
     return action, stats

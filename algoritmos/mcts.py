@@ -85,7 +85,7 @@ class MCTSNode(Generic[S, A]):
         """
         return len(self.untried_actions) == 0
 
-    def best_child_by_uct(self, exploration_weight: float) -> "MCTSNode[S, A]":
+    def best_child_by_uct(self, exploration_weight: float, maximizing: bool) -> "MCTSNode[S, A]":
         """
         Devuelve el hijo con mejor valor UCT.
 
@@ -97,6 +97,8 @@ class MCTSNode(Generic[S, A]):
         Idea:
         - Si un hijo da buenos resultados, sube.
         - Si un hijo ha sido poco explorado, también sube.
+        - En el turno del rival se invierte la explotación, ya que el rival
+          intenta minimizar la recompensa de la IA.
         """
         best_score = float("-inf")
         best_child = None
@@ -108,6 +110,9 @@ class MCTSNode(Generic[S, A]):
                 uct_score = float("inf")
             else:
                 exploitation = child.total_reward / child.visits
+                if not maximizing:
+                    exploitation = -exploitation
+
                 exploration = exploration_weight * math.sqrt(
                     math.log(self.visits) / child.visits
                 )
@@ -197,6 +202,8 @@ def backpropagate(node: MCTSNode[S, A], reward: float) -> None:
     Como la recompensa siempre está expresada desde la perspectiva
     de la IA que está pensando, NO hace falta alternar signo entre
     niveles del árbol.
+    La diferencia entre el turno de la IA y el del rival se gestiona
+    durante la selección UCT, maximizando o minimizando la explotación.
     """
     current = node
 
@@ -269,7 +276,8 @@ def mcts(
             and node.is_fully_expanded()
             and len(node.children) > 0
         ):
-            node = node.best_child_by_uct(exploration_weight)
+            maximizing = node.state.current_player == ai_player
+            node = node.best_child_by_uct(exploration_weight, maximizing)
             depth += 1
 
             if stats is not None and depth > stats.max_depth:

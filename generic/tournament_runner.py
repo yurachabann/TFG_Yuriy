@@ -185,16 +185,6 @@ def _safe_params(params: dict | None) -> dict:
     result = {}
 
     for key, value in params.items():
-        # Una heurística es un objeto Python y no se puede guardar directamente.
-        # Guardamos el nombre de su clase.
-        if key == "heuristic":
-            if value is None:
-                result[key] = None
-            else:
-                result[key] = value.__class__.__name__
-
-            continue
-
         try:
             # Comprobamos si el valor se puede convertir a JSON.
             json.dumps(value)
@@ -207,6 +197,7 @@ def _safe_params(params: dict | None) -> dict:
             result[key] = str(value)
 
     return result
+
 
 def _public_algorithm_config(key: str, config: dict) -> dict:
     """
@@ -240,6 +231,7 @@ def _run_single_match_worker(
     alg2_key: str,
     alg2_config: dict,
     move_timeout_seconds: float,
+    save_decisions: bool,
     output_queue
 ):
     """
@@ -284,7 +276,8 @@ def _run_single_match_worker(
         stats_manager = StatsManager(
             file_path="__not_saved_here__.json",
             game_name=game.name,
-            players=players
+            players=players,
+            save_decisions=save_decisions
         )
 
         # Redirigimos la salida estándar para ocultar los prints de Match.
@@ -403,7 +396,8 @@ class TournamentRunner:
         results_file: str = "stats/results.json",
         move_timeout_seconds: float = 5.0,
         match_timeout_seconds: float = 120.0,
-        play_both_orders: bool = True
+        play_both_orders: bool = True,
+        save_decisions: bool = False
     ):
         # Diccionario de juegos disponibles.
         # Ejemplo: {"1": TicTacToeGame, "2": Connect4Game, ...}
@@ -434,6 +428,9 @@ class TournamentRunner:
         # y B como jugador 1 contra A como jugador 2.
         self.play_both_orders = play_both_orders
 
+        # Si es True, se guardan en el JSON las decisiones tomadas en cada turno.
+        self.save_decisions = save_decisions
+
         # Estructura principal que se guardará al final en JSON.
         self.results = {
             "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -441,6 +438,7 @@ class TournamentRunner:
             "move_timeout_seconds": self.move_timeout_seconds,
             "match_timeout_seconds": self.match_timeout_seconds,
             "play_both_orders": self.play_both_orders,
+            "save_decisions": self.save_decisions,
             "games": [],
             "algorithms": [],
             "summary": {
@@ -454,94 +452,53 @@ class TournamentRunner:
         }
 
 
-    def _build_algorithm_variants_for_game(
+    def _build_algorithm_config_for_game(
         self,
         game_key: str,
-        algorithm_key: str,
         algorithm_config: dict
-    ) -> list[tuple[str, dict]]:
+    ) -> dict:
         """
-        Crea todas las variantes válidas de un algoritmo para un juego concreto.
+        Crea una copia de la configuración de un algoritmo para un juego concreto.
 
-        Si el algoritmo no necesita heurística:
-        - crea una única variante con sus parámetros normales
-
-        Si el algoritmo necesita heurística:
-        - busca todas las heurísticas registradas para el juego
-        - crea una variante diferente por cada heurística
-        - añade la heurística a los parámetros del algoritmo
+        Si el algoritmo necesita una heurística:
+        - busca las heurísticas registradas para ese juego
+        - toma la primera heurística disponible
+        - la añade a los parámetros del algoritmo
 
         La configuración original de self.algorithm_registry no se modifica.
         """
 
-        # Creamos una copia independiente de la configuración base.
-        base_config = {
+        # Creamos una copia independiente de la configuración.
+        config = {
             "name": algorithm_config["name"],
             "fn": algorithm_config["fn"],
             "params": algorithm_config.get("params", {}).copy()
         }
 
-        # Los algoritmos que no necesitan heurística participan una única vez.
-        if base_config["fn"] not in self.algorithms_requiring_heuristic:
-            return [(algorithm_key, base_config)]
+        # Los algoritmos sin límite de profundidad no necesitan heurística.
+        if config["fn"] not in self.algorithms_requiring_heuristic:
+            return config
 
-        # Obtenemos todas las heurísticas registradas para el juego actual.
+        # Obtenemos las heurísticas registradas para el juego actual.
         game_heuristics = self.heuristics_by_game.get(game_key, {})
 
         # Si el algoritmo necesita heurística y el juego no tiene ninguna,
-        # no existe una variante válida para esta combinación.
+        # esta combinación no se puede ejecutar.
         if not game_heuristics:
-            return []
-
-        variants = []
-
-        # Creamos una variante del algoritmo por cada heurística disponible.
-        for heuristic_key, heuristic_config in game_heuristics.items():
-            variant_config = {
-                "name": (
-                    f"{base_config['name']} + "
-                    f"{heuristic_config['name']}"
-                ),
-                "fn": base_config["fn"],
-                "params": base_config["params"].copy()
-            }
-
-            # Añadimos la instancia de la heurística a los parámetros.
-            variant_config["params"]["heuristic"] = heuristic_config["instance"]
-
-            # La clave también identifica la heurística para diferenciar variantes.
-            variant_key = f"{algorithm_key}:heuristic:{heuristic_key}"
-
-            variants.append((variant_key, variant_config))
-
-        return variants
-
-    def _build_game_algorithm_variants(
-        self,
-        game_key: str
-    ) -> list[tuple[str, dict]]:
-        """
-        Devuelve todas las configuraciones de IA válidas para un juego.
-
-        Los algoritmos que no necesitan heurística aparecen una sola vez.
-        Los algoritmos que sí la necesitan aparecen una vez por cada
-        heurística registrada para ese juego.
-        """
-
-        variants = []
-
-        # Recorremos todos los algoritmos base registrados.
-        for algorithm_key, algorithm_config in self.algorithm_registry.items():
-            # Añadimos todas las variantes válidas del algoritmo actual.
-            variants.extend(
-                self._build_algorithm_variants_for_game(
-                    game_key=game_key,
-                    algorithm_key=algorithm_key,
-                    algorithm_config=algorithm_config
-                )
+            raise ValueError(
+                f"El juego '{game_key}' no tiene una heurística configurada "
+                f"para el algoritmo '{config['name']}'."
             )
 
-        return variants
+        # Actualmente cada juego tiene una única heurística registrada.
+        # Si en el futuro hay varias, aquí se podrá decidir cuál utilizar.
+        heuristic_config = next(iter(game_heuristics.values()))
+
+        # Añadimos la instancia de la heurística a los parámetros del algoritmo.
+        config["params"]["heuristic"] = heuristic_config["instance"]
+
+        return config
+
 
     def run_all(self) -> dict:
         """
@@ -549,8 +506,7 @@ class TournamentRunner:
 
         Recorre:
         - todos los juegos
-        - todas las variantes válidas de los algoritmos
-        - todas las parejas posibles entre esas variantes
+        - todas las parejas de algoritmos
         - todas las partidas necesarias
 
         Al final guarda todos los resultados en un único JSON.
@@ -559,55 +515,43 @@ class TournamentRunner:
         # Guardamos en self.results la lista de juegos y algoritmos usados.
         self._initialize_metadata()
 
-        # Convertimos el diccionario de juegos a una lista para recorrerlo.
+        # Convertimos los diccionarios a listas para poder recorrerlos cómodamente.
         game_items = list(self.game_registry.items())
+        algorithm_items = list(self.algorithm_registry.items())
 
-        # Aquí guardaremos, para cada juego, sus variantes y sus parejas.
-        # Se prepara antes para poder calcular el número total de partidas.
-        games_with_variants = []
+        # Generamos las parejas de algoritmos.
+        if self.play_both_orders:
+            # Permutaciones: A vs B y B vs A son partidas distintas.
+            pairs = list(itertools.permutations(algorithm_items, 2))
+        else:
+            # Combinaciones: A vs B solo se juega una vez.
+            pairs = list(itertools.combinations(algorithm_items, 2))
 
         # Número total de partidas previstas.
-        total = 0
-
-        # Preparamos las variantes válidas y las parejas de cada juego.
-        for game_key, game_cls in game_items:
-            # Creamos todas las variantes válidas para el juego actual.
-            variants = self._build_game_algorithm_variants(game_key)
-
-            # Generamos las parejas de variantes.
-            if self.play_both_orders:
-                # Permutaciones: A vs B y B vs A son partidas distintas.
-                pairs = list(itertools.permutations(variants, 2))
-            else:
-                # Combinaciones: A vs B solo se juega una vez.
-                pairs = list(itertools.combinations(variants, 2))
-
-            games_with_variants.append(
-                (game_key, game_cls, variants, pairs)
-            )
-
-            total += len(pairs)
+        total = len(game_items) * len(pairs)
 
         # Contador de progreso.
         current = 0
 
         print("\n=== TORNEO AUTOMÁTICO IA VS IA ===")
         print(f"Juegos: {len(game_items)}")
-        print(f"Algoritmos base: {len(self.algorithm_registry)}")
+        print(f"Algoritmos: {len(algorithm_items)}")
         print(f"Partidas a ejecutar: {total}")
         print(f"Timeout por movimiento: {self.move_timeout_seconds} segundos")
         print(f"Timeout por partida: {self.match_timeout_seconds} segundos")
         print(f"Fichero de salida: {self.results_file}")
 
         # Recorremos todos los juegos.
-        for game_key, game_cls, variants, pairs in games_with_variants:
+        for game_key, game_cls in game_items:
             game_name = game_cls().name
-
             print(f"\n=== Juego: {game_name} ===")
-            print(f"Variantes de IA válidas: {len(variants)}")
 
-            # Para cada juego, recorremos todas las parejas de variantes.
+            # Para cada juego, recorremos todas las parejas de algoritmos.
             for (alg1_key, alg1_config), (alg2_key, alg2_config) in pairs:
+                # Seguridad extra: evitamos algoritmo contra sí mismo.
+                if alg1_key == alg2_key:
+                    continue
+
                 current += 1
 
                 print(
@@ -615,14 +559,49 @@ class TournamentRunner:
                     f"{game_name}: {alg1_config['name']} vs {alg2_config['name']}"
                 )
 
+                # Preparamos las configuraciones para el juego actual.
+                # Si un algoritmo necesita heurística, se añade aquí.
+                try:
+                    game_alg1_config = self._build_algorithm_config_for_game(
+                        game_key=game_key,
+                        algorithm_config=alg1_config
+                    )
+
+                    game_alg2_config = self._build_algorithm_config_for_game(
+                        game_key=game_key,
+                        algorithm_config=alg2_config
+                    )
+
+                except ValueError as error:
+                    # Si falta una heurística necesaria, la partida se marca
+                    # como inválida sin llegar a crear el proceso.
+                    match_result = {
+                        "status": "invalid_algorithm_for_game",
+                        "valid": False,
+                        "game": {
+                            "key": game_key,
+                            "name": game_name
+                        },
+                        "player1": _public_algorithm_config(alg1_key, alg1_config),
+                        "player2": _public_algorithm_config(alg2_key, alg2_config),
+                        "invalid_algorithm": "heuristic_missing",
+                        "invalid_player_id": None,
+                        "reason": str(error),
+                        "elapsed_time": 0.0
+                    }
+
+                    # Guardamos el resultado inválido y continuamos con la siguiente pareja.
+                    self._record_match_result(match_result)
+                    continue
+
                 # Ejecutamos la partida con timeout de proceso.
                 match_result = self._run_match_with_process_timeout(
                     game_key=game_key,
                     game_cls=game_cls,
                     alg1_key=alg1_key,
-                    alg1_config=alg1_config,
+                    alg1_config=game_alg1_config,
                     alg2_key=alg2_key,
-                    alg2_config=alg2_config
+                    alg2_config=game_alg2_config
                 )
 
                 # Guardamos el resultado en la estructura general.
@@ -639,7 +618,7 @@ class TournamentRunner:
         print("Resultados guardados en:", self.results_file)
 
         return self.results
-
+    
     def _initialize_metadata(self) -> None:
         """
         Guarda en self.results la información general de los juegos
@@ -697,6 +676,7 @@ class TournamentRunner:
                 alg2_key,
                 alg2_config,
                 self.move_timeout_seconds,
+                self.save_decisions,
                 output_queue
             )
         )

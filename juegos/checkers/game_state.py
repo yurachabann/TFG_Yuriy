@@ -43,6 +43,7 @@ class CheckersGameState(GameState):
     current_player: int = 1
     is_terminal: bool = False
     winner: Optional[int] = None
+    moves_without_progress: int = 0
 
     def __post_init__(self):
         """
@@ -97,7 +98,8 @@ class CheckersGameState(GameState):
             board=self.board.copy(),
             current_player=self.current_player,
             is_terminal=self.is_terminal,
-            winner=self.winner
+            winner=self.winner,
+            moves_without_progress=self.moves_without_progress
         )
 
     def index(self, x: int, y: int) -> int:

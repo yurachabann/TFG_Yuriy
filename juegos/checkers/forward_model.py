@@ -44,6 +44,8 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
     - gana quien deja al rival sin piezas o sin movimientos
     """
 
+    MAX_MOVES_WITHOUT_PROGRESS = 80
+
     def compute_available_actions(self, state: CheckersGameState) -> list[MovePieceAction]:
         """
         Devuelve todas las acciones legales desde el estado actual.
@@ -126,7 +128,7 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
             raise ValueError(f"Movimiento ilegal: {action}")
 
         self.apply_action_without_validation(state, action)
-        self.update_terminal_status(state)
+        self.update_terminal_status(state, check_moves=False)
 
         if not state.is_terminal:
             state.current_player = other_player(state.current_player)
@@ -411,6 +413,8 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
         end_x, end_y = path[-1]
 
         piece = state.get(start_x, start_y)
+        was_capture = action.is_capture()
+        was_promotion = False
 
         # Quitamos la pieza de la casilla inicial.
         state.set(start_x, start_y, EMPTY)
@@ -434,17 +438,28 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
         # Por tanto corona al llegar a y = 7.
         if piece == P1_MAN and end_y == 0:
             piece = P1_KING
+            was_promotion = True
         elif piece == P2_MAN and end_y == state.size - 1:
             piece = P2_KING
+            was_promotion = True
 
         # Colocamos la pieza en su destino final.
         state.set(end_x, end_y, piece)
+
+        if was_capture or was_promotion:
+            state.moves_without_progress = 0
+        else:
+            state.moves_without_progress += 1
 
     # ========================================================
     # COMPROBACIÓN DE FINAL DE PARTIDA
     # ========================================================
 
-    def update_terminal_status(self, state: CheckersGameState) -> None:
+    def update_terminal_status(
+        self,
+        state: CheckersGameState,
+        check_moves: bool = True
+    ) -> None:
         """
         Comprueba si la partida terminó.
 
@@ -470,6 +485,14 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
         if p2_pieces == 0:
             state.is_terminal = True
             state.winner = 1
+            return
+
+        if state.moves_without_progress >= self.MAX_MOVES_WITHOUT_PROGRESS:
+            state.is_terminal = True
+            state.winner = None
+            return
+
+        if not check_moves:
             return
 
         actions = self.compute_available_actions(state)

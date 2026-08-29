@@ -24,6 +24,7 @@ class BattleshipGameState(ImperfectGameState):
     def __post_init__(self):
         if not self.ships:
             self.ships = {i: [] for i in range(1, self.num_players + 1)}
+        if not self.shots:
             self.shots = {i: set() for i in range(1, self.num_players + 1)}
 
     def clone(self):
@@ -34,7 +35,7 @@ class BattleshipGameState(ImperfectGameState):
             is_terminal=self.is_terminal,
             winner=self.winner,
             last_action_summary=self.last_action_summary,
+            ships={p: [s.copy() for s in ship_list] for p, ship_list in self.ships.items()},
             shots={p: s.copy() for p, s in self.shots.items()}
         )
-        new_state.ships = {p: [s.copy() for s in ship_list] for p, ship_list in self.ships.items()}
         return new_state

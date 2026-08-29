@@ -16,16 +16,13 @@ from algoritmos.minmax_ab_depth_limit import choose_ai_move_alpha_beta_depth_lim
 from algoritmos.mcts import choose_ai_move_mcts
 from algoritmos.mcts_max_depth import choose_ai_move_mcts_max_depth
 from algoritmos.ismcts import choose_ai_move_ismcts
-from algoritmos.mccfr import choose_ai_move_mccfr_dynamic
+from algoritmos.mccfr import choose_ai_move_mccfr
+from algoritmos.pimc import choose_ai_move_pimc
 
 from heuristics.checkers.combined_heuristic import CheckersCombinedHeuristic
 from heuristics.four_in_line.connect_four_heuristic import ConnectFourHeuristic
 from heuristics.simple_chess.simple_chess_heuristic import SimpleChessHeuristic
-
-
-# =========================
-# REGISTRO DE JUEGOS
-# =========================
+from heuristics.battleship.battleship_heuristic import BattleshipPIMCHeuristic
 
 GAMES = {
     "1": TicTacToeGame,
@@ -36,15 +33,7 @@ GAMES = {
     "6": BattleshipGame
 }
 
-
-# =========================
-# HEURÍSTICAS POR JUEGO
-# =========================
-
 HEURISTICS_BY_GAME = {
-    "1": {
-        # 3 en raya: no tiene una heurística separada
-    },
     "2": {
         "1": {
             "name": "Heurística de 4 en raya",
@@ -63,18 +52,20 @@ HEURISTICS_BY_GAME = {
             "instance": SimpleChessHeuristic(),
         }
     },
+    "6": {
+        "1": {
+            "name": "Heurística de hundir la flota",
+            "instance": BattleshipPIMCHeuristic(),
+        }
+    }
 }
 
 
 ALGORITHMS_REQUIRING_HEURISTIC = (
     choose_ai_move_alpha_beta_depth_limit,
     choose_ai_move_mcts_max_depth,
+    choose_ai_move_pimc
 )
-
-
-# =========================
-# TODOS LOS ALGORITMOS
-# =========================
 
 ALL_ALGORITHMS = {
     "1": {
@@ -88,9 +79,9 @@ ALL_ALGORITHMS = {
         "params": {}
     },
     "3": {
-        "name": "Alpha-Beta Depth Limit 5",
+        "name": "Alpha-Beta Depth Limit 3",
         "fn": choose_ai_move_alpha_beta_depth_limit,
-        "params": {"max_depth": 5}
+        "params": {"max_depth": 3}
     },
     "4": {
         "name": "Alpha-Beta Depth Limit 7",
@@ -98,15 +89,15 @@ ALL_ALGORITHMS = {
         "params": {"max_depth": 7}
     },
     "5": {
-        "name": "MCTS (1000 iter)",
+        "name": "MCTS (100 iter)",
         "fn": choose_ai_move_mcts,
-        "params": {"iterations": 1000}
+        "params": {"iterations": 100}
     },
     "6": {
-        "name": "MCTS con max depth (1000 iter)",
+        "name": "MCTS con max depth (500 iter)",
         "fn": choose_ai_move_mcts_max_depth,
         "params": {
-            "iterations": 1000,
+            "iterations": 500,
             "max_rollout_depth": 20
         }
     },
@@ -119,17 +110,22 @@ ALL_ALGORITHMS = {
         }
     },
     "8": {
-        "name": "MCCFR (5000 iter)",
-        "fn": choose_ai_move_mccfr_dynamic,
+        "name": "MCCFR (100000 iter)",
+        "fn": choose_ai_move_mccfr,
         "params": {
-            "iterations": 5000,
+            "iterations": 100000,
             "deterministic": False
         }
     },
+    "9": {
+        "name": "PIMC (200 samplea)",
+        "fn": choose_ai_move_pimc,
+        "params": {
+            "samples": 200,
+            "depth": 1
+        }
+    }
 }
-# =========================
-# GRUPOS PARA EL TORNEO
-# =========================
 
 TOURNAMENT_GROUPS = {
     "perfect_information": {
@@ -145,10 +141,6 @@ TOURNAMENT_GROUPS = {
     #     "algorithm_keys": ("7", "8"),
     # },
 }
-
-# =========================
-# MENÚS
-# =========================
 
 def choose_main_option():
     while True:
@@ -265,10 +257,8 @@ def build_algorithm_params(ai_config: dict, game_key: str) -> dict:
     heuristic = choose_heuristic(game_key)
 
     if heuristic is None:
-        raise ValueError(
-            f"El algoritmo '{ai_config['name']}' necesita una heurística, "
-            "pero el juego seleccionado no dispone de ninguna."
-        )
+        raise ValueError( f"El algoritmo '{ai_config['name']}' necesita una heurística, "
+                         "pero el juego seleccionado no dispone de ninguna.")
 
     params["heuristic"] = heuristic
     return params
@@ -285,10 +275,7 @@ def choose_algorithm_and_params(game_key: str, prompt: str):
         ai_config = choose_algorithm(prompt)
 
         try:
-            algorithm_params = build_algorithm_params(
-                ai_config=ai_config,
-                game_key=game_key
-            )
+            algorithm_params = build_algorithm_params(ai_config=ai_config, game_key=game_key)
             return ai_config, algorithm_params
         except ValueError as error:
             print(error)
@@ -299,9 +286,7 @@ def ask_yes_no(text, default=True):
     """
     Pregunta sí/no con valor por defecto.
     """
-    raw = input(
-        f"{text} [{'S/n' if default else 's/N'}]: "
-    ).strip().lower()
+    raw = input(f"{text} [{'S/n' if default else 's/N'}]: ").strip().lower()
 
     if raw == "":
         return default
@@ -317,17 +302,12 @@ def ask_stats_file():
     - la ruta del fichero si se quieren guardar;
     - None en caso contrario.
     """
-    save_stats = ask_yes_no(
-        "¿Guardar estadísticas en un JSON?",
-        default=False
-    )
+    save_stats = ask_yes_no("¿Guardar estadísticas en un JSON?",default=False)
 
     if not save_stats:
         return None
 
-    path = input(
-        "Ruta del fichero JSON [stats/results.json]: "
-    ).strip()
+    path = input("Ruta del fichero JSON [stats/results.json]: ").strip()
 
     if path == "":
         path = "stats/results.json"
@@ -353,9 +333,7 @@ def ask_float(text, default):
 
 
 def ask_tournament_file():
-    path = input(
-        "Ruta del JSON final [stats/results.json]: "
-    ).strip()
+    path = input("Ruta del JSON final [stats/results.json]: ").strip()
 
     if path == "":
         path = "stats/results.json"
@@ -368,15 +346,9 @@ def ask_tournament_file():
 # =========================
 
 def build_human_vs_ai_players(game_key: str):
-    ai_config, algorithm_params = choose_algorithm_and_params(
-        game_key=game_key,
-        prompt="Selecciona IA"
-    )
+    ai_config, algorithm_params = choose_algorithm_and_params(game_key=game_key,prompt="Selecciona IA")
 
-    human = HumanPlayer(
-        name="Humano",
-        player_id=1
-    )
+    human = HumanPlayer(name="Humano",player_id=1)
 
     ai = AIPlayer(
         name=ai_config["name"],
@@ -389,15 +361,9 @@ def build_human_vs_ai_players(game_key: str):
 
 
 def build_ai_vs_ai_players(game_key: str):
-    ai1_config, ai1_params = choose_algorithm_and_params(
-        game_key=game_key,
-        prompt="Selecciona algoritmo jugador 1"
-    )
+    ai1_config, ai1_params = choose_algorithm_and_params(game_key=game_key,prompt="Selecciona algoritmo jugador 1")
 
-    ai2_config, ai2_params = choose_algorithm_and_params(
-        game_key=game_key,
-        prompt="Selecciona algoritmo jugador 2"
-    )
+    ai2_config, ai2_params = choose_algorithm_and_params(game_key=game_key,prompt="Selecciona algoritmo jugador 2")
 
     ai1 = AIPlayer(
         name=ai1_config["name"],
@@ -431,23 +397,17 @@ def run_full_ai_tournament():
     """
     results_file = ask_tournament_file()
 
-    move_timeout_seconds = ask_float(
-        "Tiempo máximo por movimiento en segundos",
-        default=5.0
-    )
+    move_timeout_seconds = ask_float("Tiempo máximo por movimiento en segundos",default=5.0)
 
-    match_timeout_seconds = ask_float(
-        "Tiempo máximo por partida en segundos",
-        default=120.0
-    )
+    match_timeout_seconds = ask_float("Tiempo máximo por partida en segundos",default=120.0)
 
     runner = TournamentRunner(
         # game_registry=GAMES,
         game_registry={
             # "1": GAMES["1"],
             # "2": GAMES["2"],  # Temporalmente solo 4 en raya
-            "3": GAMES["3"],  # Temporalmente solo Damas
-            # "4": GAMES["4"],
+            #"3": GAMES["3"],  # Temporalmente solo Damas
+            "4": GAMES["4"],
             # "5": GAMES["5"],
             # "6": GAMES["6"]
         },
@@ -455,12 +415,13 @@ def run_full_ai_tournament():
         algorithm_registry={
             #"1": ALL_ALGORITHMS["1"],
             #"2": ALL_ALGORITHMS["2"],
-            "3": ALL_ALGORITHMS["3"],
-            "4": ALL_ALGORITHMS["4"],
-            "5": ALL_ALGORITHMS["5"],
-            "6": ALL_ALGORITHMS["6"],
-            # "7": ALL_ALGORITHMS["7"],
-            # "8": ALL_ALGORITHMS["8"]
+           # "3": ALL_ALGORITHMS["3"],
+            #"4": ALL_ALGORITHMS["4"],
+            #"5": ALL_ALGORITHMS["5"],
+            #"6": ALL_ALGORITHMS["6"],
+            "7": ALL_ALGORITHMS["7"],
+            "8": ALL_ALGORITHMS["8"],
+            "9": ALL_ALGORITHMS["9"]
         },
         # tournament_groups=TOURNAMENT_GROUPS,
         heuristics_by_game=HEURISTICS_BY_GAME,
@@ -469,15 +430,11 @@ def run_full_ai_tournament():
         move_timeout_seconds=move_timeout_seconds,
         match_timeout_seconds=match_timeout_seconds,
         play_both_orders=True,
-        save_decisions=True
+        save_decisions=False
     )
 
     runner.run_all()
 
-
-# =========================
-# MAIN LOOP
-# =========================
 
 def main():
     while True:
@@ -493,10 +450,7 @@ def main():
         if main_option == "2":
             run_full_ai_tournament()
 
-            if not ask_yes_no(
-                "¿Quieres volver al menú?",
-                default=True
-            ):
+            if not ask_yes_no("¿Quieres volver al menú?",default=True):
                 print("Saliendo...")
                 break
 
@@ -507,6 +461,8 @@ def main():
         # ---------------------------------
         game_key, game = choose_game()
         mode = choose_mode()
+        move_timeout_seconds = None
+        match_timeout_seconds = None
 
         # ---------------------------------
         # HUMANO VS IA
@@ -525,9 +481,7 @@ def main():
 
             try:
                 games_count = int(
-                    input(
-                        "¿Cuántas partidas quieres ejecutar?: "
-                    ).strip()
+                    input("¿Cuántas partidas quieres ejecutar?: ").strip()
                 )
 
                 if games_count <= 0:
@@ -535,19 +489,22 @@ def main():
             except ValueError:
                 games_count = 1
 
-            show_board = ask_yes_no(
-                "¿Mostrar tablero durante las partidas?",
-                default=(games_count == 1)
-            )
+            show_board = ask_yes_no("¿Mostrar tablero durante las partidas?",default=(games_count == 1))
 
             stats_file = ask_stats_file()
+
+            move_timeout_seconds = ask_float("Tiempo máximo por movimiento en segundos",default=5.0)
+
+            match_timeout_seconds = ask_float("Tiempo máximo por partida en segundos",default=120.0)
 
         runner = MatchRunner(
             game=game,
             players=players,
             games_count=games_count,
             show_board=show_board,
-            stats_file=stats_file
+            stats_file=stats_file,
+            move_timeout_seconds=move_timeout_seconds,
+            match_timeout_seconds=match_timeout_seconds
         )
 
         runner.run()
@@ -555,10 +512,7 @@ def main():
         # ---------------------------------
         # REPETIR
         # ---------------------------------
-        if not ask_yes_no(
-            "¿Quieres volver al menú?",
-            default=True
-        ):
+        if not ask_yes_no("¿Quieres volver al menú?", default=True):
             print("Saliendo...")
             break
 

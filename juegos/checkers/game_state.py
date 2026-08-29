@@ -13,31 +13,7 @@ from .constants import (
 
 @dataclass
 class CheckersGameState(GameState):
-    """
-    Estado del juego de damas.
 
-    Sigue la misma idea que tu TicTacToeGameState:
-    - guarda el tablero
-    - guarda el jugador actual
-    - indica si la partida ha terminado
-    - guarda el ganador si existe
-
-    Coordenadas:
-    - x representa la columna, de 0 a 7.
-    - y representa la fila, de 0 a 7.
-
-    Importante:
-    - y = 0 es la fila de arriba.
-    - y = 7 es la fila de abajo.
-
-    En esta versión:
-    - jugador 1 = x empieza abajo.
-    - jugador 2 = o empieza arriba.
-    - jugador 1 avanza hacia arriba, es decir, y - 1.
-    - jugador 2 avanza hacia abajo, es decir, y + 1.
-
-    Así, si tú eres jugador 1, verás tus piezas x abajo.
-    """
     size: int = 8
     board: Optional[list[int]] = None
     current_player: int = 1

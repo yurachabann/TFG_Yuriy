@@ -13,6 +13,7 @@ class SimpleChessGameState(GameState):
     current_player: int = WHITE
     is_terminal: bool = False
     winner: Optional[int] = None
+    moves_without_progress: int = 0
 
 
     # __post_init__ se ejecuta justo después del constructor generado
@@ -55,7 +56,8 @@ class SimpleChessGameState(GameState):
             board=self.board.copy(),
             current_player=self.current_player,
             is_terminal=self.is_terminal,
-            winner=self.winner
+            winner=self.winner,
+            moves_without_progress=self.moves_without_progress
         )
 
 

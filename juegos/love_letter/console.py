@@ -27,10 +27,10 @@ def print_board(state: LoveLetterGameState, debug_mode: bool = True):
         descartes = [f"{c.name}({c.value})" for c in state.played_cards[p]]
         
         # --- MODO DEPURACIÓN / ESPECTADOR ---
-        if debug_mode and p != 1 and not state.eliminated[p]:
-            # Muestra las cartas reales en la mano de la IA entre corchetes
+        if debug_mode and not state.eliminated[p]:
+            # Muestra las cartas reales en la mano de todos los jugadores entre corchetes
             cards_str = ", ".join(c.name for c in state.hands[p])
-            print(f"  Jugador {p} [{status}]: {len(state.hands[p])} carta(s) -> 👁️ [IA TIENE: {cards_str}] | Descartes: {descartes}")
+            print(f"  Jugador {p} [{status}]: {len(state.hands[p])} carta(s) -> 👁️ [TIENE: {cards_str}] | Descartes: {descartes}")
         else:
             print(f"  Jugador {p} [{status}]: {len(state.hands[p])} carta(s) en mano | Descartes: {descartes}")
             

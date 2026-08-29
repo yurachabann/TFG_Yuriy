@@ -18,6 +18,23 @@ class BattleshipForwardModel(
             state.ships[p] = self._place_ships_randomly(state.grid_size)
         state.current_player = 1
 
+    def create_initial_state(
+        self,
+        reference_information_state: BattleshipInformationState
+    ) -> BattleshipGameState:
+        """
+        Crea una partida NUEVA e independiente de Battleship.
+
+        El InformationState recibido se utiliza únicamente para conservar la
+        configuración estructural del juego. No se reutilizan barcos, disparos
+        ni ninguna otra información privada de la partida actual.
+        """
+        state = BattleshipGameState(
+            grid_size=reference_information_state.grid_size
+        )
+        self.setup_game(state)
+        return state
+
     def create_information_state(
         self, state: BattleshipGameState, player_id: int
     ) -> BattleshipInformationState:
@@ -316,5 +333,152 @@ class BattleshipForwardModel(
             if all_placed and len(uncovered_hits) == 0:
                 return hypothetical_ships
 
-        # En caso extremo de contingencia, devuelve los barcos ya hundidos y colocaciones de emergencia
-        return [s.copy() for s in sunk_ships] + self._place_ships_randomly(grid_size)
+        # En caso extremo, usamos una búsqueda con backtracking para encontrar
+        # una flota compatible en lugar de devolver una configuración inválida.
+        fallback_ships = self._generate_valid_hypothetical_ships_backtracking(info)
+        if fallback_ships is not None:
+            return fallback_ships
+
+        raise ValueError(
+            "No se pudo generar una flota hipotética compatible con la información observada."
+        )
+
+    def _generate_valid_hypothetical_ships_backtracking(
+        self, info: BattleshipInformationState
+    ) -> list[Set[Tuple[int, int]]] | None:
+        """
+        Fallback exacto para la determinización.
+
+        Busca mediante backtracking una colocación que:
+        - conserve los barcos ya hundidos;
+        - respete disparos al agua e impactos conocidos;
+        - mantenga los tamaños de barcos restantes;
+        - evite solapamientos y cualquier tipo de adyacencia entre barcos.
+        """
+        grid_size = info.grid_size
+        my_shots = getattr(info, "my_shots", set())
+        my_hits = getattr(info, "my_hits", set())
+        sunk_ships = getattr(info, "sunk_ships", [])
+
+        water_shots = my_shots - my_hits
+
+        sunk_cells = set()
+        forbidden_zone = set(water_shots)
+
+        for ship in sunk_ships:
+            sunk_cells.update(ship)
+            forbidden_zone.update(self._get_forbidden_zone(ship, grid_size))
+
+        active_hits = my_hits - sunk_cells
+
+        remaining_sizes = list(SHIP_SIZES)
+        for ship in sunk_ships:
+            if len(ship) in remaining_sizes:
+                remaining_sizes.remove(len(ship))
+
+        def placements_for_size(
+            size: int,
+            current_forbidden: Set[Tuple[int, int]],
+            required_hit: Tuple[int, int] | None = None
+        ) -> list[Set[Tuple[int, int]]]:
+            placements = []
+
+            for orientation in ("H", "V"):
+                for r in range(grid_size):
+                    for c in range(grid_size):
+                        coords = set()
+
+                        for i in range(size):
+                            nr = r + (i if orientation == "V" else 0)
+                            nc = c + (i if orientation == "H" else 0)
+
+                            if nr >= grid_size or nc >= grid_size:
+                                coords = set()
+                                break
+
+                            coords.add((nr, nc))
+
+                        if len(coords) != size:
+                            continue
+
+                        if required_hit is not None and required_hit not in coords:
+                            continue
+
+                        if coords.intersection(current_forbidden):
+                            continue
+
+                        placements.append(coords)
+
+            return placements
+
+        def backtrack(
+            sizes_left: list[int],
+            placed_ships: list[Set[Tuple[int, int]]],
+            current_forbidden: Set[Tuple[int, int]],
+            uncovered_hits: Set[Tuple[int, int]]
+        ) -> list[Set[Tuple[int, int]]] | None:
+            if not sizes_left:
+                if uncovered_hits:
+                    return None
+                return placed_ships
+
+            # Si todavía hay impactos sin explicar, intentamos cubrir uno de ellos
+            # con cualquiera de los tamaños de barco que quedan disponibles.
+            if uncovered_hits:
+                target_hit = next(iter(uncovered_hits))
+                tried_sizes = set()
+
+                for index, size in enumerate(sizes_left):
+                    if size in tried_sizes:
+                        continue
+                    tried_sizes.add(size)
+
+                    candidates = placements_for_size(
+                        size,
+                        current_forbidden,
+                        required_hit=target_hit
+                    )
+
+                    for coords in candidates:
+                        next_sizes = sizes_left[:index] + sizes_left[index + 1:]
+                        next_forbidden = current_forbidden.union(
+                            self._get_forbidden_zone(coords, grid_size)
+                        )
+                        result = backtrack(
+                            next_sizes,
+                            placed_ships + [coords],
+                            next_forbidden,
+                            uncovered_hits - coords
+                        )
+
+                        if result is not None:
+                            return result
+
+                return None
+
+            # Cuando todos los impactos conocidos ya están cubiertos,
+            # colocamos los barcos restantes en cualquier posición válida.
+            size = sizes_left[0]
+            for coords in placements_for_size(size, current_forbidden):
+                next_forbidden = current_forbidden.union(
+                    self._get_forbidden_zone(coords, grid_size)
+                )
+                result = backtrack(
+                    sizes_left[1:],
+                    placed_ships + [coords],
+                    next_forbidden,
+                    uncovered_hits
+                )
+
+                if result is not None:
+                    return result
+
+            return None
+
+        initial_ships = [s.copy() for s in sunk_ships]
+        return backtrack(
+            remaining_sizes,
+            initial_ships,
+            forbidden_zone,
+            active_hits
+        )

@@ -6,6 +6,7 @@ import io
 import itertools
 import json
 import multiprocessing
+import queue
 import time
 import traceback
 from pathlib import Path
@@ -115,8 +116,21 @@ class TimedAIPlayer(AIPlayer):
         """
 
         # Creamos el modelo del juego.
-        # Es lo mismo que hace AIPlayer: cada algoritmo recibe state, model y player_id.
         model = game.create_model()
+
+        # En los juegos de información perfecta el algoritmo trabaja directamente
+        # con el estado completo de la partida.
+        algorithm_state = state
+
+        # En los juegos de información imperfecta el algoritmo no debe recibir
+        # el estado real completo, ya que contiene información oculta del rival.
+        # Si el modelo permite crear un InformationState, generamos la vista
+        # correspondiente al jugador que está tomando la decisión.
+        if hasattr(model, "create_information_state"):
+            algorithm_state = model.create_information_state(
+                state,
+                self.player_id
+            )
 
         # Creamos un executor con un único hilo.
         # Ese hilo será el encargado de ejecutar el algoritmo.
@@ -125,9 +139,13 @@ class TimedAIPlayer(AIPlayer):
         # Lanzamos la función del algoritmo en el hilo.
         # La convención de tus algoritmos es:
         # algorithm_fn(state, model, ai_player, **params) -> (action, stats)
+        #
+        # Para juegos de información perfecta, algorithm_state es el GameState.
+        # Para juegos de información imperfecta, algorithm_state es el InformationState
+        # observable por este jugador.
         future = executor.submit(
             self.algorithm_fn,
-            state,
+            algorithm_state,
             model,
             self.player_id,
             **self.algorithm_params
@@ -232,7 +250,9 @@ def _run_single_match_worker(
     alg2_config: dict,
     move_timeout_seconds: float,
     save_decisions: bool,
-    output_queue
+    output_queue,
+    shared_stats,
+    training_finished_event
 ):
     """
     Ejecuta una única partida dentro de un proceso separado.
@@ -244,8 +264,10 @@ def _run_single_match_worker(
     el proceso completo se puede terminar desde fuera.
     """
 
-    # Guardamos el instante inicial para medir cuánto tarda la partida.
-    started_at = time.perf_counter()
+    stats_manager = None
+    started_at = None
+    training_started_at = None
+    training_elapsed_time = 0.0
 
     try:
         # Creamos una instancia del juego actual.
@@ -277,8 +299,10 @@ def _run_single_match_worker(
             file_path="__not_saved_here__.json",
             game_name=game.name,
             players=players,
-            save_decisions=save_decisions
+            save_decisions=save_decisions,
+            on_stats_update=lambda data: shared_stats.__setitem__("data", data)
         )
+        shared_stats["data"] = stats_manager.data
 
         # Redirigimos la salida estándar para ocultar los prints de Match.
         # Así el torneo no imprime todos los tableros ni todos los resultados.
@@ -289,6 +313,21 @@ def _run_single_match_worker(
                 show_board=False,
                 stats_manager=stats_manager
             )
+
+            # El pre-entrenamiento MCCFR se ejecuta antes de iniciar el timeout
+            # total de la partida. Tampoco pasa por TimedAIPlayer, por lo que no
+            # consume el timeout por movimiento.
+            training_started_at = time.perf_counter()
+            match.warmup_mccfr()
+            training_elapsed_time = time.perf_counter() - training_started_at
+            shared_stats["training_elapsed_time"] = training_elapsed_time
+
+            # Guardamos el instante inicial para medir cuánto tarda la partida.
+            started_at = time.perf_counter()
+
+            # Avisamos al proceso principal de que el entrenamiento ya ha terminado
+            # y de que a partir de este punto puede empezar a contar match_timeout_seconds.
+            training_finished_event.set()
 
             # Ejecutamos la partida.
             final_state = match.run(match_number=1)
@@ -308,13 +347,22 @@ def _run_single_match_worker(
             "player2": _public_algorithm_config(alg2_key, alg2_config),
             "winner": final_state.winner,
             "elapsed_time": elapsed_time,
+            "training_elapsed_time": training_elapsed_time,
             "stats": stats_manager.data
         })
 
     except AlgorithmTimeout as exc:
         # Si una IA ha superado el tiempo máximo por movimiento,
         # la partida se marca como inválida.
-        elapsed_time = time.perf_counter() - started_at
+        if started_at is not None:
+            elapsed_time = time.perf_counter() - started_at
+        else:
+            elapsed_time = 0.0
+
+        if training_started_at is not None and not training_finished_event.is_set():
+            training_elapsed_time = time.perf_counter() - training_started_at
+
+        training_finished_event.set()
 
         output_queue.put({
             "status": "invalid_algorithm_for_game",
@@ -328,13 +376,23 @@ def _run_single_match_worker(
             "invalid_algorithm": exc.algorithm_name,
             "invalid_player_id": exc.player_id,
             "reason": str(exc),
-            "elapsed_time": elapsed_time
+            "elapsed_time": elapsed_time,
+            "training_elapsed_time": training_elapsed_time,
+            "stats": stats_manager.data if stats_manager is not None else shared_stats.get("data")
         })
 
     except AlgorithmExecutionError as exc:
         # Si una IA ha producido un error interno,
         # también se marca como inválida para esa partida.
-        elapsed_time = time.perf_counter() - started_at
+        if started_at is not None:
+            elapsed_time = time.perf_counter() - started_at
+        else:
+            elapsed_time = 0.0
+
+        if training_started_at is not None and not training_finished_event.is_set():
+            training_elapsed_time = time.perf_counter() - training_started_at
+
+        training_finished_event.set()
 
         output_queue.put({
             "status": "invalid_algorithm_for_game",
@@ -348,12 +406,22 @@ def _run_single_match_worker(
             "invalid_algorithm": exc.algorithm_name,
             "invalid_player_id": exc.player_id,
             "reason": str(exc),
-            "elapsed_time": elapsed_time
+            "elapsed_time": elapsed_time,
+            "training_elapsed_time": training_elapsed_time,
+            "stats": stats_manager.data if stats_manager is not None else shared_stats.get("data")
         })
 
     except Exception as exc:
         # Cualquier otro error no esperado se guarda como error general.
-        elapsed_time = time.perf_counter() - started_at
+        if started_at is not None:
+            elapsed_time = time.perf_counter() - started_at
+        else:
+            elapsed_time = 0.0
+
+        if training_started_at is not None and not training_finished_event.is_set():
+            training_elapsed_time = time.perf_counter() - training_started_at
+
+        training_finished_event.set()
 
         output_queue.put({
             "status": "error",
@@ -366,8 +434,54 @@ def _run_single_match_worker(
             "player2": _public_algorithm_config(alg2_key, alg2_config),
             "reason": str(exc),
             "traceback": traceback.format_exc(),
-            "elapsed_time": elapsed_time
+            "elapsed_time": elapsed_time,
+            "training_elapsed_time": training_elapsed_time,
+            "stats": stats_manager.data if stats_manager is not None else shared_stats.get("data")
         })
+
+
+def _run_match_worker_loop(
+    task_queue,
+    output_queue,
+    shared_stats,
+    training_finished_event
+):
+    """
+    Mantiene vivo un único proceso para ejecutar varias partidas del torneo.
+
+    Al reutilizar el mismo proceso, las cachés globales de los algoritmos permanecen
+    en RAM entre partidas. En particular, MCCFR no necesita volver a deserializar
+    su caché persistente para cada enfrentamiento mientras el worker siga vivo.
+
+    Si un movimiento supera su timeout, el proceso principal terminará este worker
+    completo y creará otro para la siguiente partida, porque el hilo que excedió
+    el límite puede seguir ejecutándose.
+    """
+
+    while True:
+        task = task_queue.get()
+
+        # None se utiliza como señal de cierre limpio del worker.
+        if task is None:
+            return
+
+        # Reiniciamos los datos compartidos y el evento para la nueva partida.
+        shared_stats.clear()
+        training_finished_event.clear()
+
+        _run_single_match_worker(
+            game_key=task["game_key"],
+            game_cls=task["game_cls"],
+            alg1_key=task["alg1_key"],
+            alg1_config=task["alg1_config"],
+            alg2_key=task["alg2_key"],
+            alg2_config=task["alg2_config"],
+            move_timeout_seconds=task["move_timeout_seconds"],
+            save_decisions=task["save_decisions"],
+            output_queue=output_queue,
+            shared_stats=shared_stats,
+            training_finished_event=training_finished_event
+        )
 
 
 # ============================================================
@@ -450,6 +564,15 @@ class TournamentRunner:
             "matches": [],
             "invalid_algorithms_by_game": {}
         }
+
+        # Recursos del proceso persistente del torneo.
+        # Se reutilizan entre partidas para conservar en RAM las cachés de los algoritmos.
+        self._worker_process = None
+        self._worker_task_queue = None
+        self._worker_output_queue = None
+        self._worker_manager = None
+        self._worker_shared_stats = None
+        self._worker_training_finished_event = None
 
 
     def _build_algorithm_config_for_game(
@@ -546,6 +669,11 @@ class TournamentRunner:
             game_name = game_cls().name
             print(f"\n=== Juego: {game_name} ===")
 
+            # Cerramos el worker del juego anterior y creamos uno nuevo para este juego.
+            # Dentro de este proceso todas las partidas del juego comparten la misma RAM.
+            self._stop_process_worker()
+            self._start_process_worker()
+
             # Para cada juego, recorremos todas las parejas de algoritmos.
             for (alg1_key, alg1_config), (alg2_key, alg2_config) in pairs:
                 # Seguridad extra: evitamos algoritmo contra sí mismo.
@@ -592,6 +720,7 @@ class TournamentRunner:
 
                     # Guardamos el resultado inválido y continuamos con la siguiente pareja.
                     self._record_match_result(match_result)
+                    self._save_results()
                     continue
 
                 # Ejecutamos la partida con timeout de proceso.
@@ -606,6 +735,10 @@ class TournamentRunner:
 
                 # Guardamos el resultado en la estructura general.
                 self._record_match_result(match_result)
+                self._save_results()
+
+        # Cerramos el último worker persistente cuando ya no quedan partidas.
+        self._stop_process_worker()
 
         # Cuando todas las partidas han terminado, guardamos el JSON final.
         self._save_results()
@@ -644,6 +777,89 @@ class TournamentRunner:
             for key, config in self.algorithm_registry.items()
         ]
 
+    def _start_process_worker(self):
+        """
+        Crea el proceso persistente usado por el torneo.
+
+        Si ya existe un worker vivo, se reutiliza para que las cachés globales de
+        los algoritmos sigan disponibles en RAM.
+        """
+        if (
+            self._worker_process is not None
+            and self._worker_process.is_alive()
+        ):
+            return
+
+        # Si quedaron recursos de un worker anterior terminado, los limpiamos.
+        self._stop_process_worker(force=True)
+
+        self._worker_task_queue = multiprocessing.Queue()
+        self._worker_output_queue = multiprocessing.Queue()
+        self._worker_manager = multiprocessing.Manager()
+        self._worker_shared_stats = self._worker_manager.dict()
+        self._worker_training_finished_event = multiprocessing.Event()
+
+        self._worker_process = multiprocessing.Process(
+            target=_run_match_worker_loop,
+            args=(
+                self._worker_task_queue,
+                self._worker_output_queue,
+                self._worker_shared_stats,
+                self._worker_training_finished_event
+            )
+        )
+
+        self._worker_process.start()
+
+    def _stop_process_worker(self, force: bool = False):
+        """
+        Cierra el proceso persistente del torneo.
+
+        Con force=True se mata inmediatamente el proceso completo. Esto se usa
+        después de un timeout por movimiento o por partida para asegurarnos de
+        que ningún hilo del algoritmo quede ejecutándose en segundo plano.
+        """
+        process = self._worker_process
+
+        if process is not None and process.is_alive():
+            if force:
+                process.terminate()
+            else:
+                try:
+                    self._worker_task_queue.put(None)
+                except Exception:
+                    pass
+
+                process.join(timeout=1.0)
+
+                if process.is_alive():
+                    process.terminate()
+
+            process.join()
+
+        for process_queue in (
+            self._worker_task_queue,
+            self._worker_output_queue
+        ):
+            if process_queue is not None:
+                try:
+                    process_queue.close()
+                except Exception:
+                    pass
+
+        if self._worker_manager is not None:
+            try:
+                self._worker_manager.shutdown()
+            except Exception:
+                pass
+
+        self._worker_process = None
+        self._worker_task_queue = None
+        self._worker_output_queue = None
+        self._worker_manager = None
+        self._worker_shared_stats = None
+        self._worker_training_finished_event = None
+
     def _run_match_with_process_timeout(
         self,
         game_key: str,
@@ -663,43 +879,76 @@ class TournamentRunner:
         """
 
         # Cola usada para recibir el resultado desde el proceso hijo.
-        output_queue = multiprocessing.Queue()
+        # En la versión persistente la cola se crea una vez y se reutiliza.
+        self._start_process_worker()
+        output_queue = self._worker_output_queue
+
+        # Memoria compartida para conservar las últimas estadísticas incluso
+        # si el proceso hijo tiene que ser terminado por timeout.
+        shared_stats = self._worker_shared_stats
+        shared_stats.clear()
+
+        # Evento usado para saber cuándo ha terminado el pre-entrenamiento MCCFR.
+        # El tiempo de entrenamiento queda fuera del timeout total de la partida.
+        training_finished_event = self._worker_training_finished_event
+        training_finished_event.clear()
 
         # Creamos un proceso separado para ejecutar una única partida.
-        process = multiprocessing.Process(
-            target=_run_single_match_worker,
-            args=(
-                game_key,
-                game_cls,
-                alg1_key,
-                alg1_config,
-                alg2_key,
-                alg2_config,
-                self.move_timeout_seconds,
-                self.save_decisions,
-                output_queue
-            )
-        )
+        # Ahora el proceso se mantiene vivo y recibe cada partida mediante task_queue.
+        process = self._worker_process
+
+        # Arrancamos el proceso hijo.
+        # _start_process_worker() ya lo ha arrancado si no existía.
+        self._worker_task_queue.put({
+            "game_key": game_key,
+            "game_cls": game_cls,
+            "alg1_key": alg1_key,
+            "alg1_config": alg1_config,
+            "alg2_key": alg2_key,
+            "alg2_config": alg2_config,
+            "move_timeout_seconds": self.move_timeout_seconds,
+            "save_decisions": self.save_decisions
+        })
+
+        # Esperamos a que termine el pre-entrenamiento MCCFR.
+        # Este tiempo no consume match_timeout_seconds.
+        while process.is_alive() and not training_finished_event.wait(timeout=0.1):
+            pass
 
         # Medimos cuánto tarda esta partida.
         started_at = time.perf_counter()
 
-        # Arrancamos el proceso hijo.
-        process.start()
+        result = None
+        match_timed_out = False
+        deadline = started_at + self.match_timeout_seconds
 
         # Esperamos como máximo match_timeout_seconds.
-        process.join(self.match_timeout_seconds)
+        # No hacemos un join ciego: leemos la cola mientras esperamos para poder
+        # reaccionar inmediatamente a un AlgorithmTimeout de movimiento.
+        while result is None:
+            remaining = deadline - time.perf_counter()
+
+            if remaining <= 0:
+                match_timed_out = True
+                break
+
+            try:
+                result = output_queue.get(timeout=min(0.1, remaining))
+            except queue.Empty:
+                if process is None or not process.is_alive():
+                    break
 
         # Si después del timeout el proceso sigue vivo, significa que la partida
         # se ha quedado bloqueada o tarda demasiado.
-        if process.is_alive():
+        if result is None and match_timed_out:
             # Matamos el proceso completo.
-            process.terminate()
-            process.join()
-
             elapsed_time = time.perf_counter() - started_at
+            latest_stats = shared_stats.get("data")
+            training_elapsed_time = shared_stats.get("training_elapsed_time", 0.0)
 
-            return {
+            self._stop_process_worker(force=True)
+
+            result = {
                 "status": "match_timeout",
                 "valid": False,
                 "game": {
@@ -714,29 +963,51 @@ class TournamentRunner:
                     "La partida completa ha superado el límite de tiempo. "
                     "No se puede determinar con seguridad qué algoritmo se quedó bloqueado."
                 ),
-                "elapsed_time": elapsed_time
+                "elapsed_time": elapsed_time,
+                "training_elapsed_time": training_elapsed_time
             }
+
+            if latest_stats is not None:
+                result["stats"] = latest_stats
+
+            return result
 
         # Si el proceso terminó, intentamos leer el resultado que dejó en la cola.
-        try:
-            return output_queue.get_nowait()
+        # En el worker persistente el proceso normalmente sigue vivo después de una
+        # partida válida; el resultado ya se ha obtenido arriba desde output_queue.
+        if result is not None:
+            if result.get("status") == "invalid_algorithm_for_game":
+                # El hijo ya ha identificado qué algoritmo superó el timeout.
+                # Matamos inmediatamente el proceso para detener también su hilo.
+                self._stop_process_worker(force=True)
 
-        except Exception:
-            # Si el proceso terminó pero no dejó resultado, lo marcamos como error.
-            elapsed_time = time.perf_counter() - started_at
+            return result
 
-            return {
-                "status": "error",
-                "valid": False,
-                "game": {
-                    "key": game_key,
-                    "name": game_cls().name
-                },
-                "player1": _public_algorithm_config(alg1_key, alg1_config),
-                "player2": _public_algorithm_config(alg2_key, alg2_config),
-                "reason": "El proceso terminó sin devolver resultado.",
-                "elapsed_time": elapsed_time
-            }
+        # Si el proceso terminó pero no dejó resultado, lo marcamos como error.
+        elapsed_time = time.perf_counter() - started_at
+        latest_stats = shared_stats.get("data")
+        training_elapsed_time = shared_stats.get("training_elapsed_time", 0.0)
+
+        self._stop_process_worker(force=True)
+
+        result = {
+            "status": "error",
+            "valid": False,
+            "game": {
+                "key": game_key,
+                "name": game_cls().name
+            },
+            "player1": _public_algorithm_config(alg1_key, alg1_config),
+            "player2": _public_algorithm_config(alg2_key, alg2_config),
+            "reason": "El proceso terminó sin devolver resultado.",
+            "elapsed_time": elapsed_time,
+            "training_elapsed_time": training_elapsed_time
+        }
+
+        if latest_stats is not None:
+            result["stats"] = latest_stats
+
+        return result
 
     def _record_match_result(self, match_result: dict) -> None:
         """

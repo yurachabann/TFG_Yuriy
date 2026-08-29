@@ -22,6 +22,7 @@ class SimpleChessForwardModel(
 
     # Valor terminal suficientemente alto para dominar la heurística.
     WIN_SCORE = 100000
+    MAX_MOVES_WITHOUT_PROGRESS = 20
 
 
     # Genera únicamente los movimientos verdaderamente legales.
@@ -591,14 +592,6 @@ class SimpleChessForwardModel(
         if action.player != state.current_player:
             raise ValueError("Turno inválido.")
 
-        # Se valida contra la lista completa de movimientos legales.
-        legal_actions = self.compute_available_actions(state)
-
-        if action not in legal_actions:
-            raise ValueError(
-                f"Movimiento no válido: {action}"
-            )
-
         # El rey no se captura directamente.
         # La partida termina cuando está en jaque y no tiene defensa legal.
         target_piece = state.get(
@@ -612,6 +605,11 @@ class SimpleChessForwardModel(
                 "La partida termina por jaque mate."
             )
 
+        moving_piece = state.get(
+            action.from_x,
+            action.from_y
+        )
+
         # Una vez validada, la acción puede aplicarse al estado real.
         self.apply_action_without_validation(
             state,
@@ -619,24 +617,33 @@ class SimpleChessForwardModel(
             change_turn=True
         )
 
+        if target_piece != EMPTY or piece_type(moving_piece) == PAWN:
+            state.moves_without_progress = 0
+        else:
+            state.moves_without_progress += 1
+
         # Se calculan las respuestas legales del siguiente jugador.
         next_actions = self.compute_available_actions(state)
 
-        if next_actions:
+        if not next_actions:
+            # Sin movimientos legales:
+            # - si el rey está atacado, es jaque mate;
+            # - si no está atacado, es ahogado.
+            if self.is_king_attacked(
+                state,
+                state.current_player
+            ):
+                state.is_terminal = True
+                state.winner = other_player(
+                    state.current_player
+                )
+            else:
+                state.is_terminal = True
+                state.winner = None
+
             return
 
-        # Sin movimientos legales:
-        # - si el rey está atacado, es jaque mate;
-        # - si no está atacado, es ahogado.
-        if self.is_king_attacked(
-            state,
-            state.current_player
-        ):
-            state.is_terminal = True
-            state.winner = other_player(
-                state.current_player
-            )
-        else:
+        if state.moves_without_progress >= self.MAX_MOVES_WITHOUT_PROGRESS:
             state.is_terminal = True
             state.winner = None
 

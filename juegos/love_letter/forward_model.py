@@ -41,6 +41,26 @@ class LoveLetterForwardModel(
         # El jugador inicial roba del mazo para comenzar teniendo 2 cartas
         state.hands[1].append(state.deck.pop())
 
+    def create_initial_state(
+        self,
+        reference_information_state: LoveLetterInformationState
+    ) -> LoveLetterGameState:
+        """
+        Crea un estado inicial NUEVO e independiente de Love Letter.
+
+        El InformationState recibido se utiliza únicamente para conservar el número
+        de jugadores de la configuración actual. No se reutilizan la mano, el mazo,
+        los descartes ni ninguna otra información de la partida real.
+
+        setup_game() vuelve a barajar el mazo, retirar una carta y repartir desde cero,
+        por lo que cada llamada genera un comienzo aleatorio nuevo.
+        """
+        state = LoveLetterGameState(
+            num_players=len(reference_information_state.eliminated)
+        )
+        self.setup_game(state)
+        return state
+
     def create_information_state(
         self, state: LoveLetterGameState, player_id: int
     ) -> LoveLetterInformationState:
@@ -207,17 +227,28 @@ class LoveLetterForwardModel(
             if card == Card.GUARD:
                 # El Guardia no puede apuntarse a uno mismo
                 targets = [t for t in valid_targets if t != p]
-                for target in targets:
-                    # Debe adivinar un valor entre 2 (Sacerdote) y 8 (Princesa)
-                    for guess in range(2, 9):
-                        actions.append(
-                            PlayCardAction(
-                                card=Card.GUARD,
-                                player=p,
-                                target=target,
-                                guess=guess,
+                if targets:
+                    for target in targets:
+                        # Debe adivinar un valor entre 2 (Sacerdote) y 8 (Princesa)
+                        for guess in range(2, 9):
+                            actions.append(
+                                PlayCardAction(
+                                    card=Card.GUARD,
+                                    player=p,
+                                    target=target,
+                                    guess=guess,
+                                )
                             )
+                else:
+                    # Si todos los rivales están protegidos/eliminados, se descarta sin efecto
+                    actions.append(
+                        PlayCardAction(
+                            card=Card.GUARD,
+                            player=p,
+                            target=None,
+                            guess=None,
                         )
+                    )
             elif card in (Card.PRIEST, Card.BARON, Card.KING):
                 # Cartas que requieren un objetivo rival
                 targets = [t for t in valid_targets if t != p]

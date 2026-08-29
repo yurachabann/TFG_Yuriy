@@ -1,9 +1,12 @@
 from __future__ import annotations
-from typing import Optional, Generic
+from typing import Optional, Generic, Callable
 from dataclasses import dataclass, field
+import json
 import math
 import random
 import time
+from datetime import datetime
+from pathlib import Path
 
 from generic.forward_model import ForwardModel, S, A
 
@@ -29,11 +32,15 @@ class SearchStats:
 
     elapsed_time:
         Tiempo total invertido por el algoritmo.
+
+    rollouts:
+        Número de simulaciones aleatorias realizadas.
     """
     nodes_visited: int = 0
     cutoffs: int = 0
     max_depth: int = 0
     elapsed_time: float = 0.0
+    rollouts: int = 0
 
 
 # ============================================================
@@ -129,6 +136,29 @@ class MCTSNode(Generic[S, A]):
 # HELPER FUNCTIONS
 # ============================================================
 
+def save_stats_json(
+    stats: SearchStats,
+    file_path: Path
+) -> None:
+    """
+    Guarda las estadísticas actuales en JSON.
+
+    Se sobrescribe el mismo archivo durante la ejecución para que siempre
+    contenga las últimas estadísticas disponibles.
+    """
+    data = {
+        "nodes_visited": stats.nodes_visited,
+        "cutoffs": stats.cutoffs,
+        "max_depth": stats.max_depth,
+        "elapsed_time": stats.elapsed_time,
+        "rollouts": stats.rollouts
+    }
+
+    temp_path = file_path.with_suffix(".tmp")
+    with temp_path.open("w", encoding="utf-8") as file:
+        json.dump(data, file, indent=4, ensure_ascii=False)
+    temp_path.replace(file_path)
+
 def terminal_reward(state: S, ai_player: int) -> float:
     """
     Convierte un estado terminal en una recompensa simple para MCTS.
@@ -171,6 +201,9 @@ def rollout(
     """
     depth = start_depth
     rollout_state = state.clone()
+
+    if stats is not None:
+        stats.rollouts += 1
 
     while not rollout_state.is_terminal:
         actions = model.compute_available_actions(rollout_state)
@@ -223,7 +256,8 @@ def mcts(
     ai_player: int,
     iterations: int = 1000,
     exploration_weight: float = math.sqrt(2),
-    stats: Optional[SearchStats] = None
+    stats: Optional[SearchStats] = None,
+    stats_callback: Optional[Callable[[int], None]] = None
 ) -> Optional[A]:
     """
     Ejecuta Monte Carlo Tree Search y devuelve la mejor acción encontrada.
@@ -259,7 +293,7 @@ def mcts(
         stats.nodes_visited += 1
         stats.max_depth = max(stats.max_depth, 0)
 
-    for _ in range(iterations):
+    for iteration in range(iterations):
         node = root
         depth = 0
 
@@ -328,6 +362,9 @@ def mcts(
         # ====================================================
         backpropagate(node, reward)
 
+        if stats_callback is not None:
+            stats_callback(iteration + 1)
+
     # ========================================================
     # ELECCIÓN FINAL
     # ========================================================
@@ -352,7 +389,8 @@ def choose_ai_move_mcts(
     model: ForwardModel[S, A],
     ai_player: int,
     iterations: int = 1000,
-    exploration_weight: float = math.sqrt(2)
+    exploration_weight: float = math.sqrt(2),
+    save_stats: bool = False
 ) -> tuple[A, SearchStats]:
     """
     Función pública con el mismo estilo que tus otros algoritmos.
@@ -363,19 +401,46 @@ def choose_ai_move_mcts(
     """
     stats = SearchStats()
     start_time = time.perf_counter()
+    stats_file = None
 
-    action = mcts(
-        state=state,
-        model=model,
-        ai_player=ai_player,
-        iterations=iterations,
-        exploration_weight=exploration_weight,
-        stats=stats
-    )
+    if save_stats:
+        stats_dir = Path("stats")
+        stats_dir.mkdir(parents=True, exist_ok=True)
+        stats_file = stats_dir / f"mcts_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
+        save_stats_json(stats, stats_file)
 
-    if action is None:
-        actions = model.compute_available_actions(state)
-        action = random.choice(actions)
+    def update_realtime_stats(_: int) -> None:
+        if stats_file is None:
+            return
 
-    stats.elapsed_time = time.perf_counter() - start_time
-    return action, stats
+        stats.elapsed_time = time.perf_counter() - start_time
+        save_stats_json(stats, stats_file)
+
+    try:
+        action = mcts(
+            state=state,
+            model=model,
+            ai_player=ai_player,
+            iterations=iterations,
+            exploration_weight=exploration_weight,
+            stats=stats,
+            stats_callback=update_realtime_stats if save_stats else None
+        )
+
+        if action is None:
+            actions = model.compute_available_actions(state)
+            action = random.choice(actions)
+
+        stats.elapsed_time = time.perf_counter() - start_time
+
+        if stats_file is not None:
+            save_stats_json(stats, stats_file)
+
+        return action, stats
+    except Exception:
+        stats.elapsed_time = time.perf_counter() - start_time
+
+        if stats_file is not None:
+            save_stats_json(stats, stats_file)
+
+        raise

@@ -44,7 +44,7 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
     - gana quien deja al rival sin piezas o sin movimientos
     """
 
-    MAX_MOVES_WITHOUT_PROGRESS = 80
+    MAX_MOVES_WITHOUT_PROGRESS = 40
 
     def compute_available_actions(self, state: CheckersGameState) -> list[MovePieceAction]:
         """

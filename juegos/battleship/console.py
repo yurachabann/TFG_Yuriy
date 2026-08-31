@@ -8,10 +8,10 @@ def print_board(state: BattleshipGameState, debug_mode: bool = True):
     print("\n=================== ESTADO DEL TABLERO ===================")
 
     if getattr(state, "last_action_summary", None):
-        print(f"📢 ÚLTIMA JUGADA: {state.last_action_summary}")
+        print(f" ÚLTIMA JUGADA: {state.last_action_summary}")
         print("----------------------------------------------------------")
 
-    print(f"🎯 Turno actual: Jugador {state.current_player}")
+    print(f" Turno actual: Jugador {state.current_player}")
     print("----------------------------------------------------------")
 
     p = 1
@@ -70,7 +70,7 @@ def print_action_result(state_before: BattleshipGameState, action: ShootAction, 
     """Muestra la consecuencia del disparo usando el resumen guardado en el estado."""
     summary = getattr(state_after, "last_action_summary", None)
     if summary:
-        print(f"  └─ 📢 {summary}")
+        print(f"  └─  {summary}")
     print("----------------------------------------------------------\n")
 
 
@@ -89,7 +89,7 @@ def read_human_move(state: BattleshipGameState) -> tuple[int, int]:
     Devuelve (row, col) internamente para la matriz.
     """
     player = state.current_player
-    print(f"\n👉 TU TURNO (Jugador {player})")
+    print(f"\n TU TURNO (Jugador {player})")
 
     while True:
         try:
@@ -108,8 +108,8 @@ def read_human_move(state: BattleshipGameState) -> tuple[int, int]:
                 
                 if (row, col) not in state.shots[player]:
                     return row, col
-                print(f"⚠️ Ya has disparado previamente en la casilla ({x}, {y}). Elige otra.")
+                print(f" Ya has disparado previamente en la casilla ({x}, {y}). Elige otra.")
             else:
-                print(f"⚠️ Las coordenadas deben estar entre 0 y {state.grid_size - 1}.")
+                print(f" Las coordenadas deben estar entre 0 y {state.grid_size - 1}.")
         except ValueError:
-            print("⚠️ Formato no válido. Ejemplo de uso: '3 1' o '3,1'")
+            print(" Formato no válido. Ejemplo de uso: '3 1' o '3,1'")

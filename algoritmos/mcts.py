@@ -10,16 +10,9 @@ from pathlib import Path
 
 from generic.forward_model import ForwardModel, S, A
 
-
-# ============================================================
-# STATS
-# ============================================================
-
 @dataclass
 class SearchStats:
     """
-    Estadísticas de búsqueda, igual idea que en minimax y alpha-beta.
-
     nodes_visited:
         Número de nodos del árbol MCTS creados/visitados durante la búsqueda.
 
@@ -161,16 +154,9 @@ def save_stats_json(
 
 def terminal_reward(state: S, ai_player: int) -> float:
     """
-    Convierte un estado terminal en una recompensa simple para MCTS.
-
-    Convención:
     - victoria IA  -> +1.0
     - empate       ->  0.0
     - derrota IA   -> -1.0
-
-    Esto es distinto del minimax clásico, donde se usan valores tipo
-    +10-depth o -10+depth. En MCTS suele ser más natural trabajar con
-    recompensas normalizadas.
     """
     if state.winner is None:
         return 0.0
@@ -191,11 +177,6 @@ def rollout(
 
     Desde el estado recibido, juega acciones aleatorias hasta llegar
     a un estado terminal.
-
-    Importante:
-    - NO usa heurística.
-    - Esto hace que el algoritmo sea totalmente genérico.
-    - Es la versión clásica y más fácil de entender.
 
     Devuelve la recompensa final desde el punto de vista de la IA.
     """
@@ -231,7 +212,6 @@ def backpropagate(node: MCTSNode[S, A], reward: float) -> None:
     - incrementan visitas
     - acumulan la recompensa
 
-    Ojo:
     Como la recompensa siempre está expresada desde la perspectiva
     de la IA que está pensando, NO hace falta alternar signo entre
     niveles del árbol.
@@ -260,20 +240,12 @@ def mcts(
     stats_callback: Optional[Callable[[int], None]] = None
 ) -> Optional[A]:
     """
-    Ejecuta Monte Carlo Tree Search y devuelve la mejor acción encontrada.
-
-    Parámetros:
     - state: estado actual
     - model: forward model del juego
     - ai_player: identificador del jugador IA
     - iterations: número de iteraciones del MCTS
     - exploration_weight: constante C de UCT
 
-    Flujo de cada iteración:
-    1. Selección
-    2. Expansión
-    3. Simulación
-    4. Retropropagación
     """
     if state.is_terminal:
         return None
@@ -369,10 +341,6 @@ def mcts(
     # ELECCIÓN FINAL
     # ========================================================
     # Al final suele elegirse el hijo más visitado.
-    #
-    # ¿Por qué no el de mejor reward medio?
-    # Porque el más visitado suele ser la decisión más robusta
-    # tras el equilibrio exploración/explotación del MCTS.
     if not root.children:
         return random.choice(root_actions)
 

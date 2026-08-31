@@ -21,18 +21,13 @@ from .helpers import (
 
 class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
     """
-    Motor de reglas del juego de damas.
 
-    Sigue el mismo papel que TicTacToeForwardModel.
-
-    Responsabilidades:
     - generar acciones legales
     - aplicar una acción al estado
     - comprobar fin de partida
     - evaluar terminales para minimax
     - ofrecer heurística para algoritmos con profundidad limitada
 
-    Reglas implementadas:
     - tablero 8x8
     - jugador 1 = x empieza abajo
     - jugador 2 = o empieza arriba
@@ -102,9 +97,6 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
 
     def advance(self, state: CheckersGameState, action: MovePieceAction) -> None:
         """
-        Aplica una acción legal al estado.
-
-        Flujo:
         1. Comprueba que la partida no haya terminado.
         2. Comprueba que mueve el jugador correcto.
         3. Comprueba que la acción está dentro de las acciones legales.
@@ -135,18 +127,6 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
             self.update_terminal_status(state)
 
     def evaluate_terminal(self, state: CheckersGameState, ai_player: int, depth: int) -> int:
-        """
-        Evaluación de estados terminales para minimax / alpha-beta.
-
-        Convención:
-        - victoria IA: valor positivo grande
-        - derrota IA: valor negativo grande
-        - empate: 0
-
-        Usamos depth para preferir:
-        - ganar antes
-        - perder más tarde
-        """
         if state.winner is None:
             return 0
 
@@ -155,56 +135,6 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
 
         return -100000 + depth
 
-    def evaluate_heuristic(self, state: CheckersGameState, ai_player: int) -> int:
-        """
-        Heurística para estados no terminales.
-
-        Sirve para:
-        - minimax con profundidad máxima
-        - alpha-beta con profundidad máxima
-        - MCTS con max_rollout_depth si se corta el rollout
-
-        La heurística valora:
-        - cantidad de piezas
-        - damas valen más que peones
-        - avance de peones hacia la coronación
-
-        Como jugador 1 empieza abajo y avanza hacia arriba:
-        - P1_MAN está más avanzado cuanto menor es y.
-        - P2_MAN está más avanzado cuanto mayor es y.
-        """
-        opponent = other_player(ai_player)
-        score = 0
-
-        for y in range(state.size):
-            for x in range(state.size):
-                piece = state.get(x, y)
-
-                if piece == EMPTY:
-                    continue
-
-                piece_owner = owner_of(piece)
-
-                # Valor base de la pieza.
-                if piece in (P1_MAN, P2_MAN):
-                    value = 100
-                else:
-                    value = 175
-
-                # Bonus por estar más cerca de coronar.
-                if piece == P1_MAN:
-                    # Jugador 1 corona en y = 0.
-                    value += (state.size - 1 - y) * 5
-                elif piece == P2_MAN:
-                    # Jugador 2 corona en y = 7.
-                    value += y * 5
-
-                if piece_owner == ai_player:
-                    score += value
-                elif piece_owner == opponent:
-                    score -= value
-
-        return score
 
     # ========================================================
     # GENERACIÓN DE MOVIMIENTOS
@@ -251,8 +181,6 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
         - los peones capturan solo hacia delante.
         - las damas capturan en cualquier diagonal.
 
-        Si quisieras una variante donde los peones también capturan hacia atrás,
-        habría que cambiar solo esta función.
         """
         return self.movement_directions(piece, player)
     def compute_normal_moves_for_piece(
@@ -332,7 +260,6 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
         """
         Busca capturas múltiples de forma recursiva.
 
-        Idea:
         - Desde la posición actual miramos todos los saltos posibles.
         - Si encontramos un salto, clonamos el estado.
         - Quitamos la pieza capturada.
@@ -402,11 +329,7 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
         state: CheckersGameState,
         action: MovePieceAction
     ) -> None:
-        """
-        Aplica una acción que ya sabemos que es legal.
-
-        No valida nada aquí porque advance() ya validó antes.
-        """
+        
         path = action.path
 
         start_x, start_y = path[0]
@@ -461,9 +384,6 @@ class CheckersForwardModel(ForwardModel[CheckersGameState, MovePieceAction]):
         check_moves: bool = True
     ) -> None:
         """
-        Comprueba si la partida terminó.
-
-        Casos:
         - jugador 1 no tiene piezas -> gana jugador 2
         - jugador 2 no tiene piezas -> gana jugador 1
         - el jugador actual no tiene movimientos -> gana el rival

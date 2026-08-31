@@ -11,11 +11,6 @@ class LoveLetterForwardModel(
         LoveLetterGameState, PlayCardAction, LoveLetterInformationState
     ]
 ):
-    """
-    Modelo de avance (Forward Model) para Love Letter bajo un entorno de Información Imperfecta.
-    Gestiona las reglas, transiciones de estado, generación de acciones válidas y 
-    la determinización.
-    """
 
     def setup_game(self, state: LoveLetterGameState) -> None:
         """
@@ -319,12 +314,12 @@ class LoveLetterForwardModel(
                     state.eliminated[target] = True
                     self._discard_eliminated_hand(state, target)
                     state.last_action_summary = (
-                        f"🎯 Jugador {p} jugó GUARD adivinando '{guess_name}' -> 💥 ¡ACERTÓ! Jugador {target} ELIMINADO"
+                        f" Jugador {p} jugó GUARD adivinando '{guess_name}' -> 💥 ¡ACERTÓ! Jugador {target} ELIMINADO"
                     )
                 else:
                     state.excluded_cards[p][target].add(guess_card)
                     state.last_action_summary = (
-                        f"🎯 Jugador {p} jugó GUARD adivinando '{guess_name}' -> ❌ FALLÓ"
+                        f" Jugador {p} jugó GUARD adivinando '{guess_name}' -> ❌ FALLÓ"
                     )
             else:
                 state.last_action_summary = f"Jugador {p} descartó GUARD sin objetivo"
@@ -512,7 +507,7 @@ class LoveLetterForwardModel(
 
         self._clear_player_knowledge(state, player)
 
-    def evaluate_terminal(self, state: LoveLetterGameState, player_id: int) -> float:
+    def evaluate_terminal(self, state: LoveLetterGameState, player_id: int, depth: int = 0) -> float: 
         """
         Retorna la recompensa terminal para MCTS desde el punto de vista de `player_id`:
          +1.0 si es el ganador.

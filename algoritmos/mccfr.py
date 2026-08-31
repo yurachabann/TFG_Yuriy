@@ -420,7 +420,7 @@ class MCCFRAgent(Generic[S, A, I]):
 # EVALUACIÓN Y PUNTO DE ENTRADA DINÁMICO
 # ============================================================
 
-def choose_ai_move_mccfr(
+def _choose_ai_move_mccfr_from_agent(
     info_state: I,
     model: ImperfectForwardModel[S, A, I],
     agent: MCCFRAgent[S, A, I],
@@ -704,7 +704,7 @@ def _load_agent_from_disk(
 # o para un tablero de Battleship de tamaño diferente.
 _MCCFR_CACHE: dict[tuple, MCCFRAgent] = {}
 
-def choose_ai_move_mccfr(
+def choose_ai_move_mccfr_wrapper(
     info_state: I,
     model: ImperfectForwardModel[S, A, I],
     *args,
@@ -794,7 +794,7 @@ def choose_ai_move_mccfr(
     # permanece fijo durante todo el experimento.
 
     # Obtenemos la jugada y sus estadísticas
-    action, inference_stats = choose_ai_move_mccfr(
+    action, inference_stats = _choose_ai_move_mccfr_from_agent(
         info_state=info_state,
         model=model,
         agent=agent,

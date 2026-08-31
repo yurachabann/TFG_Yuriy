@@ -332,6 +332,23 @@ def _run_single_match_worker(
             # Ejecutamos la partida.
             final_state = match.run(match_number=1)
 
+            if game.name == "Leduc Poker":
+                model = game.create_model()
+                utilities = {
+                    1: model.evaluate_terminal(final_state, 1, 0),
+                    2: model.evaluate_terminal(final_state, 2, 0)
+                }
+                max_contribution = model.MAX_PLAYER_CONTRIBUTION
+                chips = {
+                    player_id: utility * max_contribution
+                    for player_id, utility in utilities.items()
+                }
+                stats_manager.record_poker_utility(
+                    match_number=1,
+                    utilities=utilities,
+                    chips=chips
+                )
+
         # Calculamos el tiempo total de esta partida.
         elapsed_time = time.perf_counter() - started_at
 
@@ -505,6 +522,7 @@ class TournamentRunner:
         self,
         game_registry: dict[str, Any],
         algorithm_registry: dict[str, dict],
+        algorithms_by_game: dict[str, tuple[str, ...]],
         heuristics_by_game: dict[str, dict],
         algorithms_requiring_heuristic: tuple,
         results_file: str = "stats/results.json",
@@ -520,6 +538,10 @@ class TournamentRunner:
         # Diccionario de algoritmos disponibles.
         # Ejemplo: {"1": {"name": "Minimax", "fn": ..., "params": {...}}, ...}
         self.algorithm_registry = algorithm_registry
+
+
+        self.algorithms_by_game = algorithms_by_game
+
 
         # Diccionario de heurísticas disponibles para cada juego.
         # Ejemplo: {"2": {"1": {"name": "...", "instance": ...}}, ...}
@@ -629,7 +651,7 @@ class TournamentRunner:
 
         Recorre:
         - todos los juegos
-        - todas las parejas de algoritmos
+        - todas las parejas de algoritmos compatibles con cada juego
         - todas las partidas necesarias
 
         Al final guarda todos los resultados en un único JSON.
@@ -638,27 +660,35 @@ class TournamentRunner:
         # Guardamos en self.results la lista de juegos y algoritmos usados.
         self._initialize_metadata()
 
-        # Convertimos los diccionarios a listas para poder recorrerlos cómodamente.
+        # Convertimos los juegos a una lista para poder recorrerlos cómodamente.
         game_items = list(self.game_registry.items())
-        algorithm_items = list(self.algorithm_registry.items())
 
-        # Generamos las parejas de algoritmos.
-        if self.play_both_orders:
-            # Permutaciones: A vs B y B vs A son partidas distintas.
-            pairs = list(itertools.permutations(algorithm_items, 2))
-        else:
-            # Combinaciones: A vs B solo se juega una vez.
-            pairs = list(itertools.combinations(algorithm_items, 2))
+        # Preparamos los algoritmos compatibles con cada juego.
+        algorithm_items_by_game = {}
+        total = 0
 
-        # Número total de partidas previstas.
-        total = len(game_items) * len(pairs)
+        for game_key, _ in game_items:
+            allowed_algorithm_keys = self.algorithms_by_game.get(game_key, ())
+
+            game_algorithm_items = [
+                (key, self.algorithm_registry[key])
+                for key in allowed_algorithm_keys
+                if key in self.algorithm_registry
+            ]
+
+            algorithm_items_by_game[game_key] = game_algorithm_items
+
+            if self.play_both_orders:
+                total += len(list(itertools.permutations(game_algorithm_items, 2)))
+            else:
+                total += len(list(itertools.combinations(game_algorithm_items, 2)))
 
         # Contador de progreso.
         current = 0
 
         print("\n=== TORNEO AUTOMÁTICO IA VS IA ===")
         print(f"Juegos: {len(game_items)}")
-        print(f"Algoritmos: {len(algorithm_items)}")
+        print(f"Algoritmos: {len(self.algorithm_registry)}")
         print(f"Partidas a ejecutar: {total}")
         print(f"Timeout por movimiento: {self.move_timeout_seconds} segundos")
         print(f"Timeout por partida: {self.match_timeout_seconds} segundos")
@@ -668,6 +698,16 @@ class TournamentRunner:
         for game_key, game_cls in game_items:
             game_name = game_cls().name
             print(f"\n=== Juego: {game_name} ===")
+
+            algorithm_items = algorithm_items_by_game[game_key]
+
+            # Generamos las parejas de algoritmos compatibles con este juego.
+            if self.play_both_orders:
+                # Permutaciones: A vs B y B vs A son partidas distintas.
+                pairs = list(itertools.permutations(algorithm_items, 2))
+            else:
+                # Combinaciones: A vs B solo se juega una vez.
+                pairs = list(itertools.combinations(algorithm_items, 2))
 
             # Cerramos el worker del juego anterior y creamos uno nuevo para este juego.
             # Dentro de este proceso todas las partidas del juego comparten la misma RAM.
@@ -735,6 +775,24 @@ class TournamentRunner:
 
                 # Guardamos el resultado en la estructura general.
                 self._record_match_result(match_result)
+
+                if game_name == "Leduc Poker" and match_result.get("valid"):
+                    poker_utility = match_result.get("stats", {}).get("poker_utility", {})
+                    p1_utility = poker_utility.get("1", {})
+                    p2_utility = poker_utility.get("2", {})
+
+                    print("--- Utilidad Leduc Poker ---")
+                    print(
+                        f"{alg1_config['name']}: "
+                        f"utilidad={round(p1_utility.get('total_utility', 0.0), 4)} | "
+                        f"fichas netas={round(p1_utility.get('net_chips', 0.0), 4)}"
+                    )
+                    print(
+                        f"{alg2_config['name']}: "
+                        f"utilidad={round(p2_utility.get('total_utility', 0.0), 4)} | "
+                        f"fichas netas={round(p2_utility.get('net_chips', 0.0), 4)}"
+                    )
+
                 self._save_results()
 
         # Cerramos el último worker persistente cuando ya no quedan partidas.
@@ -751,7 +809,7 @@ class TournamentRunner:
         print("Resultados guardados en:", self.results_file)
 
         return self.results
-    
+
     def _initialize_metadata(self) -> None:
         """
         Guarda en self.results la información general de los juegos

@@ -35,7 +35,10 @@ class BattleshipGameState(ImperfectGameState):
             is_terminal=self.is_terminal,
             winner=self.winner,
             last_action_summary=self.last_action_summary,
-            ships={p: [s.copy() for s in ship_list] for p, ship_list in self.ships.items()},
+            # Las posiciones de los barcos no cambian durante una partida. Copiamos solo
+            # las listas contenedoras y compartimos los conjuntos de coordenadas para evitar
+            # duplicar la misma geometría en cada clon usado por MCTS/ISMCTS/PIMC.
+            ships={p: ship_list.copy() for p, ship_list in self.ships.items()},
             shots={p: s.copy() for p, s in self.shots.items()}
         )
         return new_state

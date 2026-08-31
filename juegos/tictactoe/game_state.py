@@ -8,7 +8,6 @@ class TicTacToeGameState(GameState):
     """
     Estado del juego de 3 en raya.
 
-    Atributos:
     - grid_size: tamaño del tablero (por defecto 3)
     - board: lista lineal con las celdas
              0 = vacía, 1 = jugador 1, 2 = jugador 2
@@ -30,10 +29,6 @@ class TicTacToeGameState(GameState):
             self.board = [0] * (self.grid_size * self.grid_size)
 
     def clone(self):
-        """
-        Devuelve una copia profunda del estado.
-        Muy importante para los algoritmos de búsqueda.
-        """
         return TicTacToeGameState(
             grid_size=self.grid_size,
             board=self.board.copy(),

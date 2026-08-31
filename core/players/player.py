@@ -7,10 +7,6 @@ class Player(ABC):
     """
     Clase base abstracta para cualquier tipo de jugador.
 
-    Tanto un jugador humano como uno IA deben poder usarse
-    de la misma forma desde Match:
-        action, stats = player.choose_action(state, game)
-
     Atributos:
     - name: nombre visible del jugador
     - player_id: identificador del jugador (normalmente 1 o 2)
@@ -26,7 +22,6 @@ class Player(ABC):
         Debe devolver una tupla:
             (action, stats)
 
-        Convención:
         - HumanPlayer devolverá (action, None)
         - AIPlayer devolverá (action, stats)
         """

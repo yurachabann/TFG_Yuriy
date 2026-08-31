@@ -8,16 +8,9 @@ import time
 
 from generic.forward_model import ForwardModel, S, A
 
-
-# ============================================================
-# STATS
-# ============================================================
-
 @dataclass
 class SearchStats:
     """
-    Estadísticas compatibles con StatsManager.
-
     nodes_visited:
         Número de nodos creados/visitados por MCTS.
 
@@ -209,9 +202,6 @@ def mcts(
     stats: Optional[SearchStats] = None
 ) -> Optional[A]:
     """
-    Ejecuta Monte Carlo Tree Search.
-
-    Parámetros:
     - iterations:
         número de iteraciones MCTS.
 

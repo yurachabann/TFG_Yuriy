@@ -10,7 +10,6 @@ from algoritmos.minmax_ab_depth_limit import choose_ai_move_alpha_beta_depth_lim
 
 @dataclass
 class SearchStats:
-    """Métricas de rendimiento acumuladas durante la ejecución de PIMC."""
     determinizations: int = 0
     nodes_visited: int = 0
     cutoffs: int = 0
@@ -28,8 +27,6 @@ def pimc(
     stats: Optional[SearchStats] = None
 ) -> Optional[A]:
     """
-    Ejecuta Perfect Information Monte Carlo (PIMC).
-    
     Genera `samples` determinizaciones y llama a choose_ai_move_alpha_beta_depth_limit
     para cada una, agregando las decisiones y las estadísticas de búsqueda.
     """

@@ -10,8 +10,6 @@ from generic.imperfect.forward_model import ImperfectForwardModel, S, A, I
 @dataclass
 class ISMCTSStats:
     """
-    Guarda métricas de rendimiento del algoritmo durante la ejecución.
-    
     - nodes_visited: Número total de nodos creados/añadidos al árbol.
     - cutoffs: Inexistente en MCTS/ISMCTS (se mantiene por compatibilidad con la interfaz).
     - max_depth: Profundidad máxima alcanzada durante la simulación.
@@ -87,53 +85,51 @@ class ISMCTSNode(Generic[A]):
     children: dict[tuple[A, Any], ISMCTSNode[A]] = field(default_factory=dict)
     # Visitas reales que ha recibido este nodo
     visits: int = 0
-    # La disponibilidad mide cuántas veces la acción 'a' estuvo disponible (fue legal)
-    # mientras estábamos en este nodo padre.
+    # La disponibilidad mide cuántas veces una rama de acción ya existente estuvo
+    # disponible para selección bajo las determinizaciones visitadas en este nodo.
     availability: dict[A, int] = field(default_factory=dict)
+    # Estadísticas incrementales por acción. Equivalen a las estadísticas del hijo
+    # asociado a esa rama en el SO-ISMCTS canónico, pero permiten conservar la
+    # representación compacta (acción, InformationState resultante) usada aquí.
+    action_visits: dict[A, int] = field(default_factory=dict)
+    action_total_reward: dict[A, float] = field(default_factory=dict)
     # Recompensa acumulada desde la perspectiva de player_just_moved.
     total_reward: float = 0.0
 
     def get_action_stats(self, action: A) -> tuple[int, float]:
         """
-        Agrega visitas y recompensa de todos los hijos producidos por una acción.
+        Devuelve las estadísticas acumuladas de la rama correspondiente a una acción.
 
-        Una acción puede tener varios hijos porque puede producir observaciones
-        diferentes según la determinización utilizada.
+        Se mantienen incrementalmente durante la retropropagación para evitar recorrer
+        todos los hijos cada vez que se calcula UCT.
         """
-        visits = 0
-        total_reward = 0.0
+        return (
+            self.action_visits.get(action, 0),
+            self.action_total_reward.get(action, 0.0)
+        )
 
-        for (child_action, _), child in self.children.items():
-            if child_action == action:
-                visits += child.visits
-                total_reward += child.total_reward
-
-        return visits, total_reward
 
     def best_action_by_uct(
         self,
         legal_actions: list[A],
         exploration_weight: float
     ) -> A:
-        """
-        Selecciona la mejor acción legal usando UCT modificado para ISMCTS.
 
-        Las estadísticas de explotación se agregan entre todos los posibles
-        InformationStates resultantes de una misma acción. La disponibilidad
-        continúa perteneciendo a la acción en el nodo padre.
-        """
         best_score = float("-inf")
         best_action = None
 
         for action in legal_actions:
-            action_visits, action_total_reward = self.get_action_stats(action)
+            action_visits = self.action_visits.get(action, 0)
+            action_total_reward = self.action_total_reward.get(action, 0.0)
 
             if action_visits == 0:
                 uct_score = float("inf")
             else:
                 exploitation = action_total_reward / action_visits
                 action_avail = max(1, self.availability.get(action, 1))
-                exploration = exploration_weight * math.sqrt(math.log(action_avail) / action_visits)
+                exploration = exploration_weight * math.sqrt(
+                    math.log(action_avail) / action_visits
+                )
                 uct_score = exploitation + exploration
 
             if uct_score > best_score:
@@ -141,6 +137,7 @@ class ISMCTSNode(Generic[A]):
                 best_action = action
 
         return best_action
+
 
 
 # ============================================================
@@ -225,10 +222,13 @@ def ismcts(
         det_state = model.determinize(info_state)
         node = root
         visited_nodes_in_sim = [node]
+        # Guarda las ramas que estuvieron disponibles y la acción seleccionada en
+        # cada nodo visitado. Se actualizan tras la simulación, durante backpropagation.
+        decision_steps = []
         depth = 0
 
-        # Candidatos que pueden utilizarse directamente en la fase de expansión.
-        expansion_candidates = []
+        # Candidato que puede utilizarse directamente en la fase de expansión.
+        expansion_candidate = None
 
         # ----------------------------------------------------
         # 1. SELECCIÓN
@@ -238,19 +238,41 @@ def ismcts(
             if not legal_actions:
                 break
 
-            # Cada acción legal ha estado disponible una vez más en esta visita al nodo.
-            for action in legal_actions:
-                node.availability[action] = node.availability.get(action, 0) + 1
-
-            # Para cada acción calculamos qué InformationState observaría el jugador raíz
-            # después de aplicarla en esta determinización.
+            # En SO-ISMCTS canónico debemos comprobar todas las acciones legales
+            # compatibles con la determinización actual para detectar si alguna
+            # conduce a un InformationState que todavía no existe en el árbol.
+            #
+            # Guardamos las transiciones porque, si no hay nada que expandir,
+            # podremos reutilizar directamente la correspondiente a la acción UCT
+            # sin volver a clonar ni avanzar el estado.
             transitions = {}
+
+            # Ramas de acción que ya existían antes de esta visita. La disponibilidad
+            # canónica solo se incrementa para ramas que realmente existían para ser
+            # seleccionadas, además de la rama nueva elegida durante expansión.
+            existing_actions = {
+                child_action
+                for child_action, _ in node.children.keys()
+            }
+
+            # El jugador que realiza cualquiera de estas acciones es el mismo
+            # mientras permanezcamos en este nodo.
+            player_just_moved = model.get_current_player(det_state)
+
+            # Reservoir sampling:
+            # si aparecen varios candidatos de expansión, elegimos uno de forma
+            # uniforme sin construir una lista adicional con todos ellos.
+            expansion_candidate = None
+            expansion_candidates_count = 0
 
             for action in legal_actions:
                 next_state = det_state.clone()
                 model.advance(next_state, action)
 
-                next_info_state = model.create_information_state(next_state,ai_player)
+                next_info_state = model.create_information_state(
+                    next_state,
+                    ai_player
+                )
                 next_info_key = _to_hashable(next_info_state)
                 child_key = (action, next_info_key)
 
@@ -261,21 +283,47 @@ def ismcts(
                 )
 
                 if child_key not in node.children:
-                    expansion_candidates.append(
-                        (action,next_state,next_info_key,child_key)
-                    )
+                    expansion_candidates_count += 1
 
-            # Si existe al menos una transición compatible todavía no expandida,
-            # pasamos a la fase de expansión.
-            if expansion_candidates:
+                    if random.randrange(expansion_candidates_count) == 0:
+                        expansion_candidate = (
+                            action,
+                            next_state,
+                            next_info_key,
+                            child_key,
+                            player_just_moved
+                        )
+
+            # Si existe al menos una expansión compatible con esta determinización,
+            # la fase de selección termina aquí, como en SO-ISMCTS canónico.
+            if expansion_candidate is not None:
+                selected_action = expansion_candidate[0]
+                available_actions = [
+                    action
+                    for action in legal_actions
+                    if action in existing_actions or action == selected_action
+                ]
+                decision_steps.append((
+                    node,
+                    available_actions,
+                    selected_action,
+                    player_just_moved
+                ))
                 break
 
-            # Todas las transiciones compatibles ya existen:
-            # seleccionamos la acción con mejor UCT agregado.
+            # Todas las transiciones exactas de esta determinización ya existen.
+            # Seleccionamos entonces la acción mediante UCT.
             action = node.best_action_by_uct(
                 legal_actions,
                 exploration_weight
             )
+
+            decision_steps.append((
+                node,
+                legal_actions,
+                action,
+                player_just_moved
+            ))
 
             next_state, _, child_key = transitions[action]
 
@@ -290,13 +338,14 @@ def ismcts(
         # ----------------------------------------------------
         # 2. EXPANSIÓN
         # ----------------------------------------------------
-        if not det_state.is_terminal and expansion_candidates:
-            action, next_state, next_info_key, child_key = random.choice(
-                expansion_candidates
-            )
-
-            # El jugador que realiza la acción se obtiene antes de avanzar.
-            player_just_moved = model.get_current_player(det_state)
+        if not det_state.is_terminal and expansion_candidate is not None:
+            (
+                action,
+                next_state,
+                next_info_key,
+                child_key,
+                player_just_moved
+            ) = expansion_candidate
 
             new_child = ISMCTSNode(
                 parent=node,
@@ -335,6 +384,33 @@ def ismcts(
                 reward = terminal_reward(terminal_state,visited_node.player_just_moved)
                 visited_node.total_reward += reward
 
+        # Actualización canónica de las ramas visitadas y de sus disponibilidades.
+        # Se hace después de la simulación para que la selección UCT de esta misma
+        # iteración utilice únicamente estadísticas de iteraciones anteriores.
+        for (
+            decision_node,
+            available_actions,
+            selected_action,
+            player_just_moved
+        ) in decision_steps:
+            for available_action in available_actions:
+                decision_node.availability[available_action] = (
+                    decision_node.availability.get(available_action, 0) + 1
+                )
+
+            decision_node.action_visits[selected_action] = (
+                decision_node.action_visits.get(selected_action, 0) + 1
+            )
+
+            reward = terminal_reward(
+                terminal_state,
+                player_just_moved
+            )
+
+            decision_node.action_total_reward[selected_action] = (
+                decision_node.action_total_reward.get(selected_action, 0.0) + reward
+            )
+
     # ========================================================
     # ELECCIÓN FINAL DE LA ACCIÓN
     # ========================================================
@@ -343,14 +419,19 @@ def ismcts(
         available = model.compute_available_actions(sample_det)
         return random.choice(available) if available else None
 
-    # Una acción puede tener varios hijos por producir diferentes observaciones.
-    # Para la decisión final sumamos las visitas de todos sus hijos.
-    root_actions = {}
+    # SO-ISMCTS devuelve la rama de la raíz con mayor número de visitas.
+    # action_visits mantiene directamente ese contador aunque una misma acción
+    # produzca diferentes InformationStates observables.
+    if root.action_visits:
+        return max(
+            root.action_visits.keys(),
+            key=lambda action: root.action_visits[action]
+        )
 
-    for (action, _), child in root.children.items():
-        root_actions[action] = root_actions.get(action, 0) + child.visits
-
-    return max(root_actions.keys(), key=lambda action: root_actions[action])
+    # Fallback defensivo: solo debería alcanzarse si no se registró ninguna rama.
+    sample_det = model.determinize(info_state)
+    available = model.compute_available_actions(sample_det)
+    return random.choice(available) if available else None
 
 
 # ============================================================

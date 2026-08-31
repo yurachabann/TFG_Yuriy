@@ -27,31 +27,21 @@ def alpha_beta(
     stats: Optional[SearchStats] = None
 ) -> tuple[float, Optional[A]]:
     """
-    Igual que minimax, pero usando poda alfa-beta.
-
     alpha = mejor valor garantizado para MAX hasta ahora
     beta  = mejor valor garantizado para MIN hasta ahora
 
     Si alpha >= beta, se poda la rama porque ya no puede
     influir en la decisión final.
 
-    CAMBIO IMPORTANTE:
-    Se añade max_depth para limitar la profundidad de búsqueda.
-    Esto es necesario en juegos grandes como 4 en raya.
     """
     if stats is not None:
         stats.nodes_visited += 1
         if depth > stats.max_depth:
             stats.max_depth = depth
 
-    # CASO 1:
-    # Si el estado es terminal, usamos la evaluación terminal normal
     if state.is_terminal:
         return model.evaluate_terminal(state, ai_player, depth), None
 
-    # Si llegamos a la profundidad máxima, NO seguimos bajando.
-    # En ese punto usamos una heurística para estimar lo bueno/malo
-    # del estado aunque no sea terminal.
     if depth >= max_depth:
         return heuristic.evaluate(state, ai_player), None
 

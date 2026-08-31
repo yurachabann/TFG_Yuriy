@@ -1,23 +1,5 @@
 # heuristics/checkers/combined_heuristic.py
 
-"""
-        Heurística para estados no terminales.
-
-        Sirve para:
-        - minimax con profundidad máxima
-        - alpha-beta con profundidad máxima
-        - MCTS con max_rollout_depth si se corta el rollout
-
-        La heurística valora:
-        - cantidad de piezas
-        - damas valen más que peones
-        - avance de peones hacia la coronación
-
-        Como jugador 1 empieza abajo y avanza hacia arriba:
-        - P1_MAN está más avanzado cuanto menor es y.
-        - P2_MAN está más avanzado cuanto mayor es y.
-        """
-
 from generic.heuristic import Heuristic
 from juegos.checkers.constants import (
     EMPTY,

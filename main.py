@@ -1,7 +1,6 @@
 from core.match_runner import MatchRunner
 from core.players import HumanPlayer, AIPlayer
-
-from generic.tournament_runner import TournamentRunner
+from core.tournament_runner import TournamentRunner
 
 from juegos.tictactoe.game import TicTacToeGame
 from juegos.four_in_line.game import Connect4Game
@@ -9,6 +8,7 @@ from juegos.checkers.game import CheckersGame
 from juegos.love_letter.game import LoveLetterGame
 from juegos.simple_chess.game import SimpleChessGame
 from juegos.battleship.game import BattleshipGame
+from juegos.leduc_poker.game import LeducPokerGame
 
 from algoritmos.minmax import choose_ai_move
 from algoritmos.minmax_ab import choose_ai_move_alpha_beta
@@ -16,13 +16,17 @@ from algoritmos.minmax_ab_depth_limit import choose_ai_move_alpha_beta_depth_lim
 from algoritmos.mcts import choose_ai_move_mcts
 from algoritmos.mcts_max_depth import choose_ai_move_mcts_max_depth
 from algoritmos.ismcts import choose_ai_move_ismcts
-from algoritmos.mccfr import choose_ai_move_mccfr
+from algoritmos.mccfr import choose_ai_move_mccfr_wrapper
 from algoritmos.pimc import choose_ai_move_pimc
+from algoritmos.ismcts_depth_limit import choose_ai_move_ismcts_heuristic
 
 from heuristics.checkers.combined_heuristic import CheckersCombinedHeuristic
 from heuristics.four_in_line.connect_four_heuristic import ConnectFourHeuristic
 from heuristics.simple_chess.simple_chess_heuristic import SimpleChessHeuristic
-from heuristics.battleship.battleship_heuristic import BattleshipPIMCHeuristic
+from heuristics.love_letter.love_letter_heuristic import LoveLetterPIMCHeuristic
+from heuristics.battleship.battleship_heuristic import BattleshipHeuristic
+from heuristics.leduc_poker.leduc_poker_heuristic import LeducPokerHeuristic
+
 
 GAMES = {
     "1": TicTacToeGame,
@@ -30,7 +34,8 @@ GAMES = {
     "3": CheckersGame,
     "4": LoveLetterGame,
     "5": SimpleChessGame,
-    "6": BattleshipGame
+    "6": BattleshipGame,
+    "7": LeducPokerGame
 }
 
 HEURISTICS_BY_GAME = {
@@ -55,7 +60,19 @@ HEURISTICS_BY_GAME = {
     "6": {
         "1": {
             "name": "Heurística de hundir la flota",
-            "instance": BattleshipPIMCHeuristic(),
+            "instance": BattleshipHeuristic(),
+        }
+    },
+    "4": {
+        "1": {
+            "name": "Heurística PIMC del Love Letter",
+            "instance": LoveLetterPIMCHeuristic(),
+        }
+    },
+    "7": {
+        "1": {
+            "name": "Heurística del Leduc Poker",
+            "instance": LeducPokerHeuristic(),
         }
     }
 }
@@ -64,7 +81,8 @@ HEURISTICS_BY_GAME = {
 ALGORITHMS_REQUIRING_HEURISTIC = (
     choose_ai_move_alpha_beta_depth_limit,
     choose_ai_move_mcts_max_depth,
-    choose_ai_move_pimc
+    choose_ai_move_pimc,
+    choose_ai_move_ismcts_heuristic
 )
 
 ALL_ALGORITHMS = {
@@ -94,7 +112,7 @@ ALL_ALGORITHMS = {
         "params": {"iterations": 100}
     },
     "6": {
-        "name": "MCTS con max depth (500 iter)",
+        "name": "MCTS con max depth (500 iter, 20 rollout)",
         "fn": choose_ai_move_mcts_max_depth,
         "params": {
             "iterations": 500,
@@ -102,44 +120,47 @@ ALL_ALGORITHMS = {
         }
     },
     "7": {
-        "name": "ISMCTS (1000 iter)",
+        "name": "ISMCTS (5000 iter)",
         "fn": choose_ai_move_ismcts,
         "params": {
-            "iterations": 1000,
-            "exploration_weight": 1.414  # O math.sqrt(2)
+            "iterations": 5000,
+            "exploration_weight": 1.414  # O math
         }
     },
     "8": {
-        "name": "MCCFR (100000 iter)",
-        "fn": choose_ai_move_mccfr,
+        "name": "MCCFR (500 iter)",
+        "fn": choose_ai_move_mccfr_wrapper,
         "params": {
-            "iterations": 100000,
+            "iterations": 500,
             "deterministic": False
         }
     },
     "9": {
-        "name": "PIMC (200 samplea)",
+        "name": "PIMC (1000 samples)",
         "fn": choose_ai_move_pimc,
         "params": {
-            "samples": 200,
-            "depth": 1
+            "samples": 1000,
+            "depth": 2
         }
+    },
+    "10": {
+        "name": "ISMCTS Heuristic (500 iter., rollout 10)",
+        "fn": choose_ai_move_ismcts_heuristic,
+        "params": {
+            "iterations": 500,
+            "max_rollout_depth": 10,
+            }
     }
 }
 
-TOURNAMENT_GROUPS = {
-    "perfect_information": {
-        "name": "Juegos de información perfecta",
-        # "game_keys": ("1", "2", "3", "5"),
-        # "game_keys": ("2",),  # Temporalmente solo 4 en raya
-        "game_keys": ("3",),  # Temporalmente solo Damas
-        "algorithm_keys": ("1", "2", "3", "4", "5", "6"),
-    },
-    # "imperfect_information": {
-    #     "name": "Juegos de información imperfecta",
-    #     "game_keys": ("4", "6"),
-    #     "algorithm_keys": ("7", "8"),
-    # },
+ALGORITHMS_BY_GAME = {
+    "1": ("1", "2", "5"),
+    "2": ("1", "2", "3", "4", "5", "6"),
+    "3": ("1", "2", "3", "4", "5", "6"),
+    "4": ("7", "8", "9", "10"),
+    "5": ("1", "2", "3", "4", "5", "6"),
+    "6": ("7", "8", "9", "10"),
+    "7": ("7", "8", "9", "10")
 }
 
 def choose_main_option():
@@ -158,10 +179,7 @@ def choose_main_option():
 
 
 def choose_game():
-    """
-    Pregunta al usuario qué juego quiere y devuelve
-    la clave y una instancia del juego seleccionado.
-    """
+
     while True:
         print("\n=== Selecciona juego ===")
         print("1. 3 en raya")
@@ -170,6 +188,7 @@ def choose_game():
         print("4. Love Letter")
         print("5. Ajedrez simplificado")
         print("6. Hundir la flota")
+        print("7. Leduc Poker")
 
         option = input("Opción: ").strip()
 
@@ -196,20 +215,23 @@ def choose_mode():
         print("Opción no válida")
 
 
-def choose_algorithm(prompt="Selecciona algoritmo"):
+def choose_algorithm(game_key: str, prompt="Selecciona algoritmo"):
     """
-    Muestra todos los algoritmos disponibles y devuelve
-    la configuración del algoritmo elegido.
+    Muestra únicamente los algoritmos compatibles con el juego seleccionado
+    y devuelve la configuración del algoritmo elegido.
     """
+    available_algorithm_keys = ALGORITHMS_BY_GAME.get(game_key, ())
+
     while True:
         print(f"\n=== {prompt} ===")
 
-        for key, config in ALL_ALGORITHMS.items():
+        for key in available_algorithm_keys:
+            config = ALL_ALGORITHMS[key]
             print(f"{key}. {config['name']}")
 
         option = input("Opción: ").strip()
 
-        if option in ALL_ALGORITHMS:
+        if option in available_algorithm_keys:
             return ALL_ALGORITHMS[option]
 
         print("Opción no válida")
@@ -272,7 +294,7 @@ def choose_algorithm_and_params(game_key: str, prompt: str):
     vuelve a pedir otro algoritmo.
     """
     while True:
-        ai_config = choose_algorithm(prompt)
+        ai_config = choose_algorithm(game_key=game_key,prompt=prompt)
 
         try:
             algorithm_params = build_algorithm_params(ai_config=ai_config, game_key=game_key)
@@ -388,9 +410,6 @@ def build_ai_vs_ai_players(game_key: str):
 
 def run_full_ai_tournament():
     """
-    Ejecuta todos los juegos y todas las combinaciones posibles de IAs.
-    Cada IA juega contra todas las demás.
-
     También se ejecutan ambos órdenes:
     - IA A como jugador 1 contra IA B como jugador 2
     - IA B como jugador 1 contra IA A como jugador 2
@@ -404,26 +423,26 @@ def run_full_ai_tournament():
     runner = TournamentRunner(
         # game_registry=GAMES,
         game_registry={
-            # "1": GAMES["1"],
-            # "2": GAMES["2"],  # Temporalmente solo 4 en raya
-            #"3": GAMES["3"],  # Temporalmente solo Damas
+            "1": GAMES["1"],
+            "2": GAMES["2"],
+            "3": GAMES["3"],
             "4": GAMES["4"],
-            # "5": GAMES["5"],
-            # "6": GAMES["6"]
+            "5": GAMES["5"],
+            "6": GAMES["6"]
         },
         # algorithm_registry=ALL_ALGORITHMS,
         algorithm_registry={
-            #"1": ALL_ALGORITHMS["1"],
-            #"2": ALL_ALGORITHMS["2"],
-           # "3": ALL_ALGORITHMS["3"],
-            #"4": ALL_ALGORITHMS["4"],
-            #"5": ALL_ALGORITHMS["5"],
-            #"6": ALL_ALGORITHMS["6"],
+            "1": ALL_ALGORITHMS["1"],
+            "2": ALL_ALGORITHMS["2"],
+            "3": ALL_ALGORITHMS["3"],
+            "4": ALL_ALGORITHMS["4"],
+            "5": ALL_ALGORITHMS["5"],
+            "6": ALL_ALGORITHMS["6"],
             "7": ALL_ALGORITHMS["7"],
             "8": ALL_ALGORITHMS["8"],
             "9": ALL_ALGORITHMS["9"]
         },
-        # tournament_groups=TOURNAMENT_GROUPS,
+        algorithms_by_game=ALGORITHMS_BY_GAME,
         heuristics_by_game=HEURISTICS_BY_GAME,
         algorithms_requiring_heuristic=ALGORITHMS_REQUIRING_HEURISTIC,
         results_file=results_file,

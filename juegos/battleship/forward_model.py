@@ -12,6 +12,11 @@ class BattleshipForwardModel(
     ]
 ):
 
+    # Cachés compartidas entre instancias: las geometrías del tablero y las acciones
+    # posibles no cambian durante la ejecución y se pueden reutilizar de forma segura.
+    _ship_placements_cache = {}
+    _shoot_actions_cache = {}
+
     def setup_game(self, state: BattleshipGameState) -> None:
         """Coloca los barcos aleatoriamente para ambos jugadores al iniciar el juego."""
         for p in range(1, state.num_players + 1):
@@ -98,6 +103,7 @@ class BattleshipForwardModel(
         p = state.current_player
         already_shot = state.shots[p]
         enemy_id = 2 if p == 1 else 1
+        action_lookup = self._get_shoot_actions(state.grid_size, p)
 
         # 1. Filtrar los impactos de barcos que AÚN NO se han hundido completamente
         active_hits = set()
@@ -117,15 +123,14 @@ class BattleshipForwardModel(
 
             if adjacent_targets:
                 return [
-                    ShootAction(player=p, row=r, col=c)
+                    action_lookup[(r, c)]
                     for (r, c) in adjacent_targets
                 ]
 
         # 3. Devolver cualquier casilla libre si no hay tocados activos
         return [
-            ShootAction(player=p, row=r, col=c)
-            for r in range(state.grid_size)
-            for c in range(state.grid_size)
+            action
+            for (r, c), action in action_lookup.items()
             if (r, c) not in already_shot
         ]
 
@@ -165,15 +170,14 @@ class BattleshipForwardModel(
                 f"🟦 AGUA"
             )
 
-        all_enemy_positions = set().union(*state.ships[enemy_id])
-        if all_enemy_positions.issubset(state.shots[p]):
+        if all(ship.issubset(state.shots[p]) for ship in state.ships[enemy_id]):
             state.is_terminal = True
             state.winner = p
             return
 
         state.current_player = enemy_id
 
-    def evaluate_terminal(self, state: BattleshipGameState, player_id: int) -> float:
+    def evaluate_terminal(self, state: BattleshipGameState, player_id: int, depth: int = 0) -> float:
         if state.winner is None:
             return 0.0
         return 1.0 if state.winner == player_id else -1.0
@@ -181,6 +185,48 @@ class BattleshipForwardModel(
     # -------------------------------------------------------------
     # MÉTODOS AUXILIARES DE GENERACIÓN Y COLOCACIÓN DE BARCOS
     # -------------------------------------------------------------
+    def _get_shoot_actions(self, grid_size: int, player: int) -> dict[Tuple[int, int], ShootAction]:
+        """Devuelve las acciones de disparo precalculadas para un tablero y jugador."""
+        cache_key = (grid_size, player)
+        cached_actions = self._shoot_actions_cache.get(cache_key)
+
+        if cached_actions is None:
+            cached_actions = {
+                (r, c): ShootAction(player=player, row=r, col=c)
+                for r in range(grid_size)
+                for c in range(grid_size)
+            }
+            self._shoot_actions_cache[cache_key] = cached_actions
+
+        return cached_actions
+
+    def _get_all_ship_placements(
+        self, grid_size: int, size: int
+    ) -> list[tuple[frozenset[Tuple[int, int]], frozenset[Tuple[int, int]]]]:
+        """Devuelve todas las colocaciones geométricas posibles de un barco y su zona prohibida."""
+        cache_key = (grid_size, size)
+        cached_placements = self._ship_placements_cache.get(cache_key)
+
+        if cached_placements is not None:
+            return cached_placements
+
+        placements = []
+
+        for r in range(grid_size):
+            for c in range(grid_size - size + 1):
+                coords = frozenset((r, c + i) for i in range(size))
+                forbidden = frozenset(self._get_forbidden_zone(coords, grid_size))
+                placements.append((coords, forbidden))
+
+        for r in range(grid_size - size + 1):
+            for c in range(grid_size):
+                coords = frozenset((r + i, c) for i in range(size))
+                forbidden = frozenset(self._get_forbidden_zone(coords, grid_size))
+                placements.append((coords, forbidden))
+
+        self._ship_placements_cache[cache_key] = placements
+        return placements
+
     def _get_forbidden_zone(self, ship_coords: Set[Tuple[int, int]], grid_size: int) -> Set[Tuple[int, int]]:
         """Calcula el margen de 8 casillas (ortogonal + diagonal) alrededor del barco."""
         forbidden = set()
@@ -201,23 +247,17 @@ class BattleshipForwardModel(
 
             for size in SHIP_SIZES:
                 placed = False
-                for _ in range(100):
-                    orientation = random.choice(["H", "V"])
-                    r = random.randint(0, grid_size - 1)
-                    c = random.randint(0, grid_size - 1)
+                valid_placements = [
+                    (coords, placement_forbidden)
+                    for coords, placement_forbidden in self._get_all_ship_placements(grid_size, size)
+                    if coords.isdisjoint(forbidden_zone)
+                ]
 
-                    coords = set()
-                    for i in range(size):
-                        nr = r + (i if orientation == "V" else 0)
-                        nc = c + (i if orientation == "H" else 0)
-                        if nr < grid_size and nc < grid_size:
-                            coords.add((nr, nc))
-
-                    if len(coords) == size and not coords.intersection(forbidden_zone):
-                        ships.append(coords)
-                        forbidden_zone.update(self._get_forbidden_zone(coords, grid_size))
-                        placed = True
-                        break
+                if valid_placements:
+                    coords, placement_forbidden = random.choice(valid_placements)
+                    ships.append(set(coords))
+                    forbidden_zone.update(placement_forbidden)
+                    placed = True
 
                 if not placed:
                     all_placed = False
@@ -263,7 +303,9 @@ class BattleshipForwardModel(
         # Las casillas prohibidas base son: agua + zona de exclusión de barcos hundidos
         base_forbidden = water_shots.union(forbidden_sunk)
 
-        for _ in range(500):
+        # Probamos primero varias construcciones aleatorias rápidas. Si el estado está
+        # muy restringido, el backtracking exacto posterior evita repetir cientos de intentos.
+        for _ in range(50):
             hypothetical_ships = [s.copy() for s in sunk_ships]
             forbidden_zone = base_forbidden.copy()
             uncovered_hits = active_hits.copy()
@@ -380,35 +422,19 @@ class BattleshipForwardModel(
             size: int,
             current_forbidden: Set[Tuple[int, int]],
             required_hit: Tuple[int, int] | None = None
-        ) -> list[Set[Tuple[int, int]]]:
+        ) -> list[tuple[frozenset[Tuple[int, int]], frozenset[Tuple[int, int]]]]:
             placements = []
 
-            for orientation in ("H", "V"):
-                for r in range(grid_size):
-                    for c in range(grid_size):
-                        coords = set()
+            for coords, placement_forbidden in self._get_all_ship_placements(grid_size, size):
+                if required_hit is not None and required_hit not in coords:
+                    continue
 
-                        for i in range(size):
-                            nr = r + (i if orientation == "V" else 0)
-                            nc = c + (i if orientation == "H" else 0)
+                if not coords.isdisjoint(current_forbidden):
+                    continue
 
-                            if nr >= grid_size or nc >= grid_size:
-                                coords = set()
-                                break
+                placements.append((coords, placement_forbidden))
 
-                            coords.add((nr, nc))
-
-                        if len(coords) != size:
-                            continue
-
-                        if required_hit is not None and required_hit not in coords:
-                            continue
-
-                        if coords.intersection(current_forbidden):
-                            continue
-
-                        placements.append(coords)
-
+            random.shuffle(placements)
             return placements
 
         def backtrack(
@@ -425,10 +451,12 @@ class BattleshipForwardModel(
             # Si todavía hay impactos sin explicar, intentamos cubrir uno de ellos
             # con cualquiera de los tamaños de barco que quedan disponibles.
             if uncovered_hits:
-                target_hit = next(iter(uncovered_hits))
+                target_hit = random.choice(tuple(uncovered_hits))
                 tried_sizes = set()
+                indexed_sizes = list(enumerate(sizes_left))
+                random.shuffle(indexed_sizes)
 
-                for index, size in enumerate(sizes_left):
+                for index, size in indexed_sizes:
                     if size in tried_sizes:
                         continue
                     tried_sizes.add(size)
@@ -439,14 +467,12 @@ class BattleshipForwardModel(
                         required_hit=target_hit
                     )
 
-                    for coords in candidates:
+                    for coords, placement_forbidden in candidates:
                         next_sizes = sizes_left[:index] + sizes_left[index + 1:]
-                        next_forbidden = current_forbidden.union(
-                            self._get_forbidden_zone(coords, grid_size)
-                        )
+                        next_forbidden = current_forbidden.union(placement_forbidden)
                         result = backtrack(
                             next_sizes,
-                            placed_ships + [coords],
+                            placed_ships + [set(coords)],
                             next_forbidden,
                             uncovered_hits - coords
                         )
@@ -459,13 +485,11 @@ class BattleshipForwardModel(
             # Cuando todos los impactos conocidos ya están cubiertos,
             # colocamos los barcos restantes en cualquier posición válida.
             size = sizes_left[0]
-            for coords in placements_for_size(size, current_forbidden):
-                next_forbidden = current_forbidden.union(
-                    self._get_forbidden_zone(coords, grid_size)
-                )
+            for coords, placement_forbidden in placements_for_size(size, current_forbidden):
+                next_forbidden = current_forbidden.union(placement_forbidden)
                 result = backtrack(
                     sizes_left[1:],
-                    placed_ships + [coords],
+                    placed_ships + [set(coords)],
                     next_forbidden,
                     uncovered_hits
                 )

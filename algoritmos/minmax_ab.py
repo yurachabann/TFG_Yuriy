@@ -119,10 +119,6 @@ def alpha_beta(
 
 
 def choose_ai_move_alpha_beta(state: S, model: ForwardModel[S, A], ai_player: int) -> tuple[A, SearchStats]:
-    """
-    Función de conveniencia, igual que choose_ai_move de minimax,
-    pero usando alfa-beta.
-    """
     stats = SearchStats()
     start_time = time.perf_counter()
 

@@ -1,0 +1,505 @@
+from __future__ import annotations
+from typing import Optional, Generic, Any
+from dataclasses import dataclass, field
+import math
+import random
+import time
+
+from generic.imperfect.forward_model import ImperfectForwardModel, S, A, I
+
+@dataclass
+class ISMCTSStats:
+    """
+    - nodes_visited: Número total de nodos creados/añadidos al árbol.
+    - cutoffs: Número de rollouts detenidos al alcanzar max_rollout_depth.
+    - max_depth: Profundidad máxima alcanzada durante la simulación.
+    - elapsed_time: Tiempo total de cálculo en segundos.
+    """
+    nodes_visited: int = 0
+    cutoffs: int = 0
+    max_depth: int = 0
+    elapsed_time: float = 0.0
+
+
+# ============================================================
+# NODO DEL ÁRBOL PARA ISMCTS 
+# ============================================================
+
+def _to_hashable(obj: Any) -> Any:
+    """
+    Convierte un InformationState en una representación inmutable para poder
+    utilizarlo como parte de la clave de los nodos del árbol.
+
+    Esto permite distinguir correctamente situaciones en las que una misma
+    acción produce observaciones diferentes para el jugador raíz.
+    """
+    if isinstance(obj, (int, float, str, bool, type(None))):
+        return obj
+    if isinstance(obj, (list, tuple)):
+        return tuple(_to_hashable(x) for x in obj)
+    if isinstance(obj, (set, frozenset)):
+        return frozenset(_to_hashable(x) for x in obj)
+    if isinstance(obj, dict):
+        return tuple(
+            sorted(
+                (_to_hashable(k),_to_hashable(v))
+                for k, v in obj.items()
+            )
+        )
+    if hasattr(obj, "__dict__"):
+        return tuple(
+            sorted(
+                (k,_to_hashable(v))
+                for k, v in obj.__dict__.items()
+            )
+        )
+    return repr(obj)
+
+
+@dataclass
+class ISMCTSNode(Generic[A]):
+    """
+    Representa un conjunto de información o punto de decisión en el árbol ISMCTS.
+
+    A diferencia de MCTS estándar:
+    1. No guarda un estado completo determinista, sino la clave del InformationState
+       observado por el jugador raíz.
+    2. Una misma acción puede conducir a hijos distintos si produce observaciones
+       diferentes para el jugador raíz.
+    3. Registra la disponibilidad ('availability') de cada acción vista desde este nodo.
+    """
+    parent: Optional[ISMCTSNode[A]] = None
+    action_from_parent: Optional[A] = None
+    information_state_key: Optional[Any] = None
+    player_just_moved: Optional[int] = None
+
+    # Los hijos se identifican mediante:
+    # (acción realizada, InformationState resultante del jugador raíz).
+    #
+    # De esta forma, por ejemplo, jugar PRIEST y descubrir una PRINCESS no comparte
+    # necesariamente el mismo nodo que jugar PRIEST y descubrir un GUARD.
+    children: dict[tuple[A, Any], ISMCTSNode[A]] = field(default_factory=dict)
+    # Visitas reales que ha recibido este nodo
+    visits: int = 0
+    # La disponibilidad mide cuántas veces una rama de acción ya existente estuvo
+    # disponible para selección bajo las determinizaciones visitadas en este nodo.
+    availability: dict[A, int] = field(default_factory=dict)
+    # Estadísticas incrementales por acción. Equivalen a las estadísticas del hijo
+    # asociado a esa rama en el SO-ISMCTS canónico, pero permiten conservar la
+    # representación compacta (acción, InformationState resultante) usada aquí.
+    action_visits: dict[A, int] = field(default_factory=dict)
+    action_total_reward: dict[A, float] = field(default_factory=dict)
+    # Recompensa acumulada desde la perspectiva de player_just_moved.
+    total_reward: float = 0.0
+
+    def get_action_stats(self, action: A) -> tuple[int, float]:
+        """
+        Devuelve las estadísticas acumuladas de la rama correspondiente a una acción.
+
+        """
+        return (
+            self.action_visits.get(action, 0),
+            self.action_total_reward.get(action, 0.0)
+        )
+
+
+    def best_action_by_uct(
+        self,
+        legal_actions: list[A],
+        exploration_weight: float
+    ) -> A:
+        
+        best_score = float("-inf")
+        best_action = None
+
+        for action in legal_actions:
+            action_visits = self.action_visits.get(action, 0)
+            action_total_reward = self.action_total_reward.get(action, 0.0)
+
+            if action_visits == 0:
+                uct_score = float("inf")
+            else:
+                exploitation = action_total_reward / action_visits
+                action_avail = max(1, self.availability.get(action, 1))
+                exploration = exploration_weight * math.sqrt(
+                    math.log(action_avail) / action_visits
+                )
+                uct_score = exploitation + exploration
+
+            if uct_score > best_score:
+                best_score = uct_score
+                best_action = action
+
+        return best_action
+
+
+
+# ============================================================
+# FUNCIONES AUXILIARES
+# ============================================================
+
+def terminal_reward(
+    state: S,
+    model: ImperfectForwardModel[S, A, I],
+    ai_player: int
+) -> float:
+    """
+    Devuelve la recompensa terminal definida por el ForwardModel del juego.
+    """
+    return model.evaluate_terminal(state, ai_player, 0)
+
+
+def rollout(
+    state: S,
+    model: ImperfectForwardModel[S, A, I],
+    max_rollout_depth: int,
+    stats: Optional[ISMCTSStats] = None,
+    start_depth: int = 0
+) -> S:
+    """
+    Fase de Simulación (Play-out / Rollout):
+    Juega la partida con acciones completamente aleatorias desde la determinización actual
+    hasta alcanzar un estado terminal o el límite max_rollout_depth.
+
+    Si el rollout se detiene por profundidad, el estado no terminal resultante se evalúa
+    posteriormente mediante la heurística durante la retropropagación.
+    """
+    depth = start_depth
+    rollout_depth = 0
+    rollout_state = state.clone()
+
+    while (
+        not rollout_state.is_terminal
+        and rollout_depth < max_rollout_depth
+    ):
+        actions = model.compute_available_actions(rollout_state)
+        if not actions:
+            return rollout_state
+
+        # Elección aleatoria durante el rollout
+        action = random.choice(actions)
+        model.advance(rollout_state, action)
+
+        depth += 1
+        rollout_depth += 1
+        if stats is not None and depth > stats.max_depth:
+            stats.max_depth = depth
+
+    if (
+        stats is not None
+        and not rollout_state.is_terminal
+        and rollout_depth >= max_rollout_depth
+    ):
+        stats.cutoffs += 1
+
+    return rollout_state
+
+
+# ============================================================
+# ALGORITMO PRINCIPAL ISMCTS
+# ============================================================
+
+def ismcts_heuristic(
+    info_state: I,
+    model: ImperfectForwardModel[S, A, I],
+    ai_player: int,
+    heuristic: Any,
+    iterations: int = 1000,
+    max_rollout_depth: int = 10,
+    exploration_weight: float = math.sqrt(2),
+    stats: Optional[ISMCTSStats] = None
+) -> Optional[A]:
+    """
+    Ejecuta Single Observer Information Set Monte Carlo Tree Search (SO-ISMCTS)
+    con profundidad máxima de rollout y evaluación heurística.
+
+    El árbol se construye desde el punto de vista del jugador raíz (ai_player).
+    Los nodos distinguen los InformationStates observables por ese jugador, de
+    forma que una misma acción puede conducir a nodos diferentes cuando produce
+    información privada diferente.
+
+    Los rollouts se detienen al alcanzar max_rollout_depth. Si el estado alcanzado
+    no es terminal, se utiliza heuristic.evaluate() para estimar su valor. La escala
+    de la heurística debe ser compatible con la recompensa terminal (+1.0 / -1.0).
+    """
+    root = ISMCTSNode[A](information_state_key=_to_hashable(info_state))
+
+    if stats is not None:
+        stats.nodes_visited += 1
+
+    for _ in range(iterations):
+        # ----------------------------------------------------
+        # 0. DETERMINIZACIÓN
+        # ----------------------------------------------------
+        # Convertimos la información incompleta actual en un estado determinista completo.
+        det_state = model.determinize(info_state)
+        node = root
+        visited_nodes_in_sim = [node]
+        # Guarda las ramas que estuvieron disponibles y la acción seleccionada en
+        # cada nodo visitado. Se actualizan tras la simulación, durante backpropagation.
+        decision_steps = []
+        depth = 0
+
+        # Candidato que puede utilizarse directamente en la fase de expansión.
+        expansion_candidate = None
+
+        # ----------------------------------------------------
+        # 1. SELECCIÓN
+        # ----------------------------------------------------
+        while not det_state.is_terminal:
+            legal_actions = model.compute_available_actions(det_state)
+            if not legal_actions:
+                break
+
+            # En SO-ISMCTS canónico debemos comprobar todas las acciones legales
+            # compatibles con la determinización actual para detectar si alguna
+            # conduce a un InformationState que todavía no existe en el árbol.
+            #
+            # Guardamos las transiciones porque, si no hay nada que expandir,
+            # podremos reutilizar directamente la correspondiente a la acción UCT
+            # sin volver a clonar ni avanzar el estado.
+            transitions = {}
+
+            # Ramas de acción que ya existían antes de esta visita. La disponibilidad
+            # canónica solo se incrementa para ramas que realmente existían para ser
+            # seleccionadas, además de la rama nueva elegida durante expansión.
+            existing_actions = {
+                child_action
+                for child_action, _ in node.children.keys()
+            }
+
+            # El jugador que realiza cualquiera de estas acciones es el mismo
+            # mientras permanezcamos en este nodo.
+            player_just_moved = model.get_current_player(det_state)
+
+            # Reservoir sampling:
+            # si aparecen varios candidatos de expansión, elegimos uno de forma
+            # uniforme sin construir una lista adicional con todos ellos.
+            expansion_candidate = None
+            expansion_candidates_count = 0
+
+            for action in legal_actions:
+                next_state = det_state.clone()
+                model.advance(next_state, action)
+
+                next_info_state = model.create_information_state(
+                    next_state,
+                    ai_player
+                )
+                next_info_key = _to_hashable(next_info_state)
+                child_key = (action, next_info_key)
+
+                transitions[action] = (
+                    next_state,
+                    next_info_key,
+                    child_key
+                )
+
+                if child_key not in node.children:
+                    expansion_candidates_count += 1
+
+                    if random.randrange(expansion_candidates_count) == 0:
+                        expansion_candidate = (
+                            action,
+                            next_state,
+                            next_info_key,
+                            child_key,
+                            player_just_moved
+                        )
+
+            # Si existe al menos una expansión compatible con esta determinización,
+            # la fase de selección termina aquí, como en SO-ISMCTS canónico.
+            if expansion_candidate is not None:
+                selected_action = expansion_candidate[0]
+                available_actions = [
+                    action
+                    for action in legal_actions
+                    if action in existing_actions or action == selected_action
+                ]
+                decision_steps.append((
+                    node,
+                    available_actions,
+                    selected_action,
+                    player_just_moved
+                ))
+                break
+
+            # Todas las transiciones exactas de esta determinización ya existen.
+            # Seleccionamos entonces la acción mediante UCT.
+            action = node.best_action_by_uct(
+                legal_actions,
+                exploration_weight
+            )
+
+            decision_steps.append((
+                node,
+                legal_actions,
+                action,
+                player_just_moved
+            ))
+
+            next_state, _, child_key = transitions[action]
+
+            det_state = next_state
+            node = node.children[child_key]
+            visited_nodes_in_sim.append(node)
+            depth += 1
+
+            if stats is not None and depth > stats.max_depth:
+                stats.max_depth = depth
+
+        # ----------------------------------------------------
+        # 2. EXPANSIÓN
+        # ----------------------------------------------------
+        if not det_state.is_terminal and expansion_candidate is not None:
+            (
+                action,
+                next_state,
+                next_info_key,
+                child_key,
+                player_just_moved
+            ) = expansion_candidate
+
+            new_child = ISMCTSNode(
+                parent=node,
+                action_from_parent=action,
+                information_state_key=next_info_key,
+                player_just_moved=player_just_moved
+            )
+
+            node.children[child_key] = new_child
+
+            det_state = next_state
+            node = new_child
+            visited_nodes_in_sim.append(node)
+            depth += 1
+
+            if stats is not None:
+                stats.nodes_visited += 1
+                if depth > stats.max_depth:
+                    stats.max_depth = depth
+
+        # ----------------------------------------------------
+        # 3. SIMULACIÓN (ROLLOUT)
+        # ----------------------------------------------------
+        if det_state.is_terminal:
+            simulation_state = det_state
+        else:
+            simulation_state = rollout(
+                det_state,
+                model,
+                max_rollout_depth,
+                stats,
+                start_depth=depth
+            )
+
+        # ----------------------------------------------------
+        # 4. RETROPROPAGACIÓN (BACKPROPAGATION)
+        # ----------------------------------------------------
+        for visited_node in visited_nodes_in_sim:
+            visited_node.visits += 1
+
+            if visited_node.player_just_moved is not None:
+                if simulation_state.is_terminal:
+                    reward = terminal_reward(
+                        simulation_state,
+                        model,
+                        visited_node.player_just_moved
+                    )
+                else:
+                    reward = heuristic.evaluate(
+                        simulation_state,
+                        visited_node.player_just_moved
+                    )
+
+                visited_node.total_reward += reward
+
+        # Actualización canónica de las ramas visitadas y de sus disponibilidades.
+        # Se hace después de la simulación para que la selección UCT de esta misma
+        # iteración utilice únicamente estadísticas de iteraciones anteriores.
+        for (
+            decision_node,
+            available_actions,
+            selected_action,
+            player_just_moved
+        ) in decision_steps:
+            for available_action in available_actions:
+                decision_node.availability[available_action] = (
+                    decision_node.availability.get(available_action, 0) + 1
+                )
+
+            decision_node.action_visits[selected_action] = (
+                decision_node.action_visits.get(selected_action, 0) + 1
+            )
+
+            if simulation_state.is_terminal:
+                reward = terminal_reward(
+                    simulation_state,
+                    model,
+                    player_just_moved
+                )
+            else:
+                reward = heuristic.evaluate(
+                    simulation_state,
+                    player_just_moved
+                )
+
+            decision_node.action_total_reward[selected_action] = (
+                decision_node.action_total_reward.get(selected_action, 0.0) + reward
+            )
+
+    # ========================================================
+    # ELECCIÓN FINAL DE LA ACCIÓN
+    # ========================================================
+    if not root.children:
+        sample_det = model.determinize(info_state)
+        available = model.compute_available_actions(sample_det)
+        return random.choice(available) if available else None
+
+    # SO-ISMCTS devuelve la rama de la raíz con mayor número de visitas.
+    # action_visits mantiene directamente ese contador aunque una misma acción
+    # produzca diferentes InformationStates observables.
+    if root.action_visits:
+        return max(
+            root.action_visits.keys(),
+            key=lambda action: root.action_visits[action]
+        )
+
+    # Fallback defensivo: solo debería alcanzarse si no se registró ninguna rama.
+    sample_det = model.determinize(info_state)
+    available = model.compute_available_actions(sample_det)
+    return random.choice(available) if available else None
+
+
+# ============================================================
+# PUNTO DE ENTRADA PÚBLICO
+# ============================================================
+
+def choose_ai_move_ismcts_heuristic(
+    info_state: I,
+    model: ImperfectForwardModel[S, A, I],
+    ai_player: int,
+    heuristic: Any,
+    iterations: int = 1000,
+    max_rollout_depth: int = 10,
+    exploration_weight: float = math.sqrt(2)
+) -> tuple[A, ISMCTSStats]:
+    """
+    Función envoltorio principal para llamar a ISMCTS con heurística y medir tiempos/estadísticas.
+    """
+    stats = ISMCTSStats()
+    start_time = time.perf_counter()
+
+    action = ismcts_heuristic(
+        info_state=info_state,
+        model=model,
+        ai_player=ai_player,
+        heuristic=heuristic,
+        iterations=iterations,
+        max_rollout_depth=max_rollout_depth,
+        exploration_weight=exploration_weight,
+        stats=stats
+    )
+
+    stats.elapsed_time = time.perf_counter() - start_time
+    return action, stats

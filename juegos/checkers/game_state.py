@@ -34,14 +34,6 @@ class CheckersGameState(GameState):
 
     def setup_initial_board(self) -> None:
         """
-        Coloca las piezas iniciales.
-
-        Queremos que jugador 1, que es x, aparezca abajo.
-
-        Por tanto:
-        - jugador 2 empieza arriba: filas 0, 1, 2.
-        - jugador 1 empieza abajo: filas 5, 6, 7.
-
         Solo se colocan piezas en casillas oscuras.
         En este tablero consideramos casilla oscura si:
             (x + y) % 2 == 1
@@ -59,16 +51,6 @@ class CheckersGameState(GameState):
                     self.set(x, y, P1_MAN)
 
     def clone(self) -> "CheckersGameState":
-        """
-        Devuelve una copia independiente del estado.
-
-        Esto es imprescindible para algoritmos como:
-        - Minimax
-        - Alpha-Beta
-        - MCTS
-
-        Porque esos algoritmos simulan jugadas sin modificar el estado real.
-        """
         return CheckersGameState(
             size=self.size,
             board=self.board.copy(),

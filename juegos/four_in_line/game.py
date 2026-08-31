@@ -10,13 +10,6 @@ from juegos.four_in_line.four_in_line import (
 
 
 class Connect4Game(Game):
-    """
-    Clase que integra 4 en raya con el framework.
-
-    No contiene la lógica interna del juego.
-    Solo expone una interfaz uniforme para que Match,
-    Players y MatchRunner puedan trabajar con este juego.
-    """
 
     def __init__(self):
         super().__init__("4 en raya")

@@ -53,27 +53,7 @@ def print_board(state: CheckersGameState) -> None:
 
 
 def read_human_move(state: CheckersGameState) -> list[tuple[int, int]]:
-    """
-    Lee una jugada humana por consola.
 
-    Formato:
-        x1 y1 x2 y2
-
-    Ejemplo movimiento normal:
-        2 5 1 4
-
-    Ejemplo captura:
-        2 5 4 3
-
-    Ejemplo captura múltiple:
-        2 5 4 3 6 1
-
-    Además de comprobar formato y rango, también comprobamos si el
-    movimiento está dentro de las acciones legales.
-
-    Esto evita que el programa se caiga con un traceback cuando el humano
-    introduce una jugada ilegal.
-    """
     model = CheckersForwardModel()
 
     while True:

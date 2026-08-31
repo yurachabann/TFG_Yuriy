@@ -35,8 +35,5 @@ class BattleshipGame(ImperfectGame):
     def print_action_result(self, state_before: BattleshipGameState, action: ShootAction, state_after: BattleshipGameState):
         print_action_result(state_before, action, state_after)
 
-    # -----------------------------------------------------------------
-    # FIX: Recibe solo 1 parámetro para encajar perfectamente con Match
-    # -----------------------------------------------------------------
     def print_ai_action(self, action: ShootAction):
         print_ai_action(action)

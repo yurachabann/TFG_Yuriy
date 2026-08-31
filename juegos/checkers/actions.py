@@ -7,14 +7,6 @@ from generic.game_action import GameAction
 @dataclass
 class MovePieceAction(GameAction):
     """
-    Acción del juego de damas.
-
-    En 3 en raya tu acción era:
-        SetCellAction(x, y, player)
-
-    En damas necesitamos un camino completo, porque puede haber
-    capturas múltiples.
-
     Ejemplo de movimiento normal:
         path = [(2, 5), (3, 4)]
 
@@ -24,7 +16,6 @@ class MovePieceAction(GameAction):
     Ejemplo de captura múltiple:
         path = [(2, 5), (4, 3), (6, 1)]
 
-    player indica quién realiza la acción.
     """
     path: list[tuple[int, int]]
     player: int

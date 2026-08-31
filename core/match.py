@@ -2,14 +2,12 @@ class Match:
     """
     Representa UNA sola partida.
 
-    Responsabilidades:
     - Crear estado y modelo
     - Ejecutar la partida turno a turno
     - Pedir acciones a los jugadores
     - Aplicar acciones al estado
     - Notificar al StatsManager si existe
 
-    Importante:
     - Match NO pregunta al usuario qué juego quiere
     - Match NO decide qué jugadores hay
     - Match solo ejecuta una partida con los objetos recibidos

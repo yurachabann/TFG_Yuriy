@@ -7,15 +7,6 @@ from .console import print_board, read_human_move
 
 
 class CheckersGame(Game):
-    """
-    Wrapper class that integrates Checkers into the framework.
-
-    This class does NOT contain game logic.
-    It only connects the game implementation with:
-    - Match
-    - Players
-    - AI algorithms
-    """
 
     def __init__(self):
         super().__init__("Damas")
@@ -57,4 +48,4 @@ class CheckersGame(Game):
         """
         Print AI move.
         """
-        print("AI plays:", action.path)
+        print("IA juega:", action.path)

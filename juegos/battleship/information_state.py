@@ -1,5 +1,3 @@
-# En juegos/battleship/information_state.py
-
 from dataclasses import dataclass, field
 from typing import Set, Tuple, List
 

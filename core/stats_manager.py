@@ -8,14 +8,11 @@ from pathlib import Path
 
 class StatsManager:
     """
-    Gestor de estadísticas.
 
-    Responsabilidades:
     - Llevar estadísticas agregadas de una o varias partidas
     - Registrar resultados durante la ejecución
     - Guardar todo en un fichero JSON
 
-    Idea:
     - Match le va notificando lo que ocurre
     - MatchRunner, al final, llama a save()
 
@@ -69,6 +66,24 @@ class StatsManager:
             },
             "matches": []
         }
+
+        if self.game_name == "Leduc Poker":
+            self.data["poker_utility"] = {
+                "1": {
+                    "total_utility": 0.0,
+                    "mean_utility_per_game": 0.0,
+                    "net_chips": 0.0,
+                    "mean_chips_per_game": 0.0,
+                    "games": 0
+                },
+                "2": {
+                    "total_utility": 0.0,
+                    "mean_utility_per_game": 0.0,
+                    "net_chips": 0.0,
+                    "mean_chips_per_game": 0.0,
+                    "games": 0
+                }
+            }
 
     def set_player_order(self, players: list):
         """
@@ -292,6 +307,48 @@ class StatsManager:
 
         self._notify_update()
 
+    def record_poker_utility(
+        self,
+        match_number: int,
+        utilities: dict[int, float],
+        chips: dict[int, float]
+    ):
+        """
+        Registra la utilidad y las fichas netas de una partida de Leduc Poker.
+        """
+        if self.game_name != "Leduc Poker":
+            return
+
+        match_data = self._find_match(match_number)
+
+        if match_data is None:
+            return
+
+        match_data["utility"] = {
+            str(player_id): utilities[player_id]
+            for player_id in (1, 2)
+        }
+        match_data["chips"] = {
+            str(player_id): chips[player_id]
+            for player_id in (1, 2)
+        }
+
+        for player_id in (1, 2):
+            player_key = self.current_player_keys[player_id]
+            entry = self.data["poker_utility"][player_key]
+
+            entry["total_utility"] += utilities[player_id]
+            entry["net_chips"] += chips[player_id]
+            entry["games"] += 1
+            entry["mean_utility_per_game"] = (
+                entry["total_utility"] / entry["games"]
+            )
+            entry["mean_chips_per_game"] = (
+                entry["net_chips"] / entry["games"]
+            )
+
+        self._notify_update()
+
     def merge_external_data(
         self,
         external_data: dict | None,
@@ -319,6 +376,25 @@ class StatsManager:
             target = self.data["search_stats"][player_key]
 
             self._merge_stats_dict(target, source)
+
+        external_poker_utility = external_data.get("poker_utility", {})
+
+        if "poker_utility" in self.data:
+            for player_key in ("1", "2"):
+                source = external_poker_utility.get(player_key, {})
+                target = self.data["poker_utility"][player_key]
+
+                target["total_utility"] += source.get("total_utility", 0.0)
+                target["net_chips"] += source.get("net_chips", 0.0)
+                target["games"] += source.get("games", 0)
+
+                if target["games"] > 0:
+                    target["mean_utility_per_game"] = (
+                        target["total_utility"] / target["games"]
+                    )
+                    target["mean_chips_per_game"] = (
+                        target["net_chips"] / target["games"]
+                    )
 
         external_summary = external_data.get("summary", {})
 
@@ -555,6 +631,9 @@ class StatsManager:
 
     def get_search_stats_for_player(self, player_id: int) -> dict:
         return self.data["search_stats"][str(player_id)]
+
+    def get_poker_utility_for_player(self, player_id: int) -> dict:
+        return self.data.get("poker_utility", {}).get(str(player_id), {})
 
     def save(self):
         """

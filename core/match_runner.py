@@ -7,7 +7,7 @@ import traceback
 
 from core.match import Match
 from core.stats_manager import StatsManager
-from generic.tournament_runner import (
+from core.tournament_runner import (
     AlgorithmExecutionError,
     AlgorithmTimeout,
     TimedAIPlayer
@@ -85,6 +85,23 @@ def _run_timed_match_worker(
             match_number=match_number,
             show_match_header=True
         )
+
+        if game.name == "Leduc Poker":
+            model = game.create_model()
+            utilities = {
+                1: model.evaluate_terminal(final_state, 1, 0),
+                2: model.evaluate_terminal(final_state, 2, 0)
+            }
+            max_contribution = model.MAX_PLAYER_CONTRIBUTION
+            chips = {
+                player_id: utility * max_contribution
+                for player_id, utility in utilities.items()
+            }
+            stats_manager.record_poker_utility(
+                match_number=match_number,
+                utilities=utilities,
+                chips=chips
+            )
 
         output_queue.put({
             "status": "valid",
@@ -316,10 +333,27 @@ class MatchRunner:
                     )
 
                     try:
-                        match.run(
+                        final_state = match.run(
                             match_number=match_number,
                             show_match_header=show_match_header
                         )
+
+                        if self.game.name == "Leduc Poker" and self.stats_manager is not None:
+                            model = self.game.create_model()
+                            utilities = {
+                                1: model.evaluate_terminal(final_state, 1, 0),
+                                2: model.evaluate_terminal(final_state, 2, 0)
+                            }
+                            max_contribution = model.MAX_PLAYER_CONTRIBUTION
+                            chips = {
+                                player_id: utility * max_contribution
+                                for player_id, utility in utilities.items()
+                            }
+                            self.stats_manager.record_poker_utility(
+                                match_number=match_number,
+                                utilities=utilities,
+                                chips=chips
+                            )
                     finally:
                         # Guardamos después de cada partida, incluso si ha fallado.
                         if self.stats_manager is not None:
@@ -590,6 +624,35 @@ class MatchRunner:
             print(f"Victorias {p2_name}:", summary["p2_wins"])
             print("Empates:", summary["draws"])
             print("Partidas inválidas:", summary.get("invalid_games", 0))
+
+        if self.game.name == "Leduc Poker":
+            p1_utility = self.stats_manager.get_poker_utility_for_player(1)
+            p2_utility = self.stats_manager.get_poker_utility_for_player(2)
+
+            print("\n--- Utilidad Leduc Poker ---")
+            print(f"{p1_name}:")
+            print("Utilidad total:", round(p1_utility.get("total_utility", 0.0), 4))
+            print(
+                "Utilidad media por partida:",
+                round(p1_utility.get("mean_utility_per_game", 0.0), 4)
+            )
+            print("Fichas netas:", round(p1_utility.get("net_chips", 0.0), 4))
+            print(
+                "Fichas medias por partida:",
+                round(p1_utility.get("mean_chips_per_game", 0.0), 4)
+            )
+
+            print(f"{p2_name}:")
+            print("Utilidad total:", round(p2_utility.get("total_utility", 0.0), 4))
+            print(
+                "Utilidad media por partida:",
+                round(p2_utility.get("mean_utility_per_game", 0.0), 4)
+            )
+            print("Fichas netas:", round(p2_utility.get("net_chips", 0.0), 4))
+            print(
+                "Fichas medias por partida:",
+                round(p2_utility.get("mean_chips_per_game", 0.0), 4)
+            )
 
         if self.players[0].is_ai():
             print(f"\n--- Stats {p1_name} ---")

@@ -33,7 +33,6 @@ def is_king(piece: int) -> bool:
     """
     Devuelve True si la pieza es una dama coronada.
 
-    En este juego:
     - P1_KING representa una dama del jugador 1.
     - P2_KING representa una dama del jugador 2.
     """

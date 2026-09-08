@@ -97,9 +97,9 @@ ALL_ALGORITHMS = {
         "params": {}
     },
     "3": {
-        "name": "Alpha-Beta Depth Limit 3",
+        "name": "Alpha-Beta Depth Limit 5",
         "fn": choose_ai_move_alpha_beta_depth_limit,
-        "params": {"max_depth": 3}
+        "params": {"max_depth": 5}
     },
     "4": {
         "name": "Alpha-Beta Depth Limit 7",
@@ -112,39 +112,39 @@ ALL_ALGORITHMS = {
         "params": {"iterations": 100}
     },
     "6": {
-        "name": "MCTS con max depth (500 iter, 20 rollout)",
+        "name": "MCTS con max depth (1000 iter. rollout 20)",
         "fn": choose_ai_move_mcts_max_depth,
         "params": {
-            "iterations": 500,
+            "iterations": 1000,
             "max_rollout_depth": 20
         }
     },
     "7": {
-        "name": "ISMCTS (5000 iter)",
+        "name": "ISMCTS (1000 iter)",
         "fn": choose_ai_move_ismcts,
         "params": {
-            "iterations": 5000,
+            "iterations": 1000,
             "exploration_weight": 1.414  # O math
         }
     },
     "8": {
-        "name": "MCCFR (500 iter)",
+        "name": "MCCFR (20 iter)",
         "fn": choose_ai_move_mccfr_wrapper,
         "params": {
-            "iterations": 500,
+            "iterations": 20,
             "deterministic": False
         }
     },
     "9": {
-        "name": "PIMC (1000 samples)",
+        "name": "PIMC (1000 muestras)",
         "fn": choose_ai_move_pimc,
         "params": {
             "samples": 1000,
-            "depth": 2
+            "depth": 1
         }
     },
     "10": {
-        "name": "ISMCTS Heuristic (500 iter., rollout 10)",
+        "name": "ISMCTS Heuristic (500 iter. rollout 10)",
         "fn": choose_ai_move_ismcts_heuristic,
         "params": {
             "iterations": 500,
@@ -166,7 +166,7 @@ ALGORITHMS_BY_GAME = {
 def choose_main_option():
     while True:
         print("\n=== MENÚ PRINCIPAL ===")
-        print("1. Ejecutar partida normal")
+        print("1. Ejecutar partida(s)")
         print("2. Ejecutar todas las IAs contra todas y guardar los resultados en results.json")
         print("0. Salir")
 

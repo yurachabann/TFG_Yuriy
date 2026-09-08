@@ -7,12 +7,10 @@ class HumanPlayer(Player):
     """
     Jugador humano.
 
-    Este jugador:
     1. Le pide al juego que lea el movimiento por consola
     2. Convierte ese movimiento en una acción del dominio
     3. Devuelve la acción, pero no modifica el estado
 
-    Importante:
     - HumanPlayer NO avanza el estado
     - Solo decide qué acción quiere hacer
     - Quien aplica la acción es Match

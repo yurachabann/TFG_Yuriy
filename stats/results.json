@@ -1,0 +1,2681 @@
+{
+    "game": "4 en raya",
+    "players": {
+        "1": "Alpha-Beta Depth Limit 7",
+        "2": "MCTS con max depth (1000 iter. rollout 20)"
+    },
+    "summary": {
+        "games": 15,
+        "p1_wins": 15,
+        "p2_wins": 0,
+        "draws": 0,
+        "invalid_games": 4,
+        "errors": 0
+    },
+    "search_stats": {
+        "1": {
+            "nodes_visited": 5451639,
+            "cutoffs": 951749,
+            "elapsed_time": 562.5732528002118,
+            "max_depth": 7,
+            "ai_turns": 122
+        },
+        "2": {
+            "nodes_visited": 92023,
+            "cutoffs": 23452,
+            "elapsed_time": 10.230743800464552,
+            "max_depth": 20,
+            "ai_turns": 116
+        }
+    },
+    "matches": [
+        {
+            "match_number": 1,
+            "status": "valid",
+            "valid": true,
+            "player1": "Alpha-Beta Depth Limit 7",
+            "player2": "MCTS con max depth (1000 iter. rollout 20)",
+            "winner": 1,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 359558,
+                    "cutoffs": 60339,
+                    "elapsed_time": 38.550800500030164,
+                    "max_depth": 7,
+                    "ai_turns": 6
+                },
+                "2": {
+                    "nodes_visited": 4209,
+                    "cutoffs": 1136,
+                    "elapsed_time": 0.48187859990866855,
+                    "max_depth": 20,
+                    "ai_turns": 5
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 2,
+            "status": "move_timeout",
+            "valid": false,
+            "player1": "MCTS con max depth (1000 iter. rollout 20)",
+            "player2": "Alpha-Beta Depth Limit 7",
+            "winner": null,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 180016,
+                    "cutoffs": 28947,
+                    "elapsed_time": 20.305476500070654,
+                    "max_depth": 7,
+                    "ai_turns": 2
+                },
+                "2": {
+                    "nodes_visited": 2337,
+                    "cutoffs": 890,
+                    "elapsed_time": 0.3264832000131719,
+                    "max_depth": 20,
+                    "ai_turns": 3
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 6,
+                        "player": 1
+                    }
+                }
+            ],
+            "reason": "El algoritmo 'Alpha-Beta Depth Limit 7' del jugador 2 ha superado el límite de 15.0 segundos.",
+            "invalid_algorithm": "Alpha-Beta Depth Limit 7",
+            "invalid_player_id": 2
+        },
+        {
+            "match_number": 3,
+            "status": "valid",
+            "valid": true,
+            "player1": "Alpha-Beta Depth Limit 7",
+            "player2": "MCTS con max depth (1000 iter. rollout 20)",
+            "winner": 1,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 272653,
+                    "cutoffs": 47280,
+                    "elapsed_time": 29.864568699966185,
+                    "max_depth": 7,
+                    "ai_turns": 4
+                },
+                "2": {
+                    "nodes_visited": 2246,
+                    "cutoffs": 858,
+                    "elapsed_time": 0.3155916000250727,
+                    "max_depth": 20,
+                    "ai_turns": 3
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 4,
+            "status": "valid",
+            "valid": true,
+            "player1": "MCTS con max depth (1000 iter. rollout 20)",
+            "player2": "Alpha-Beta Depth Limit 7",
+            "winner": 2,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 186779,
+                    "cutoffs": 36633,
+                    "elapsed_time": 18.987393499992322,
+                    "max_depth": 7,
+                    "ai_turns": 8
+                },
+                "2": {
+                    "nodes_visited": 6772,
+                    "cutoffs": 1700,
+                    "elapsed_time": 0.73837660002755,
+                    "max_depth": 20,
+                    "ai_turns": 8
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 0,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 12,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 13,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 14,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 15,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 16,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 5,
+            "status": "valid",
+            "valid": true,
+            "player1": "Alpha-Beta Depth Limit 7",
+            "player2": "MCTS con max depth (1000 iter. rollout 20)",
+            "winner": 1,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 260413,
+                    "cutoffs": 45418,
+                    "elapsed_time": 27.89640130009502,
+                    "max_depth": 7,
+                    "ai_turns": 6
+                },
+                "2": {
+                    "nodes_visited": 4201,
+                    "cutoffs": 1184,
+                    "elapsed_time": 0.4864854000043124,
+                    "max_depth": 20,
+                    "ai_turns": 5
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 0,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 6,
+            "status": "move_timeout",
+            "valid": false,
+            "player1": "MCTS con max depth (1000 iter. rollout 20)",
+            "player2": "Alpha-Beta Depth Limit 7",
+            "winner": null,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 180016,
+                    "cutoffs": 28947,
+                    "elapsed_time": 20.48848859994905,
+                    "max_depth": 7,
+                    "ai_turns": 2
+                },
+                "2": {
+                    "nodes_visited": 2440,
+                    "cutoffs": 906,
+                    "elapsed_time": 0.3374835000722669,
+                    "max_depth": 20,
+                    "ai_turns": 3
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 6,
+                        "player": 1
+                    }
+                }
+            ],
+            "reason": "El algoritmo 'Alpha-Beta Depth Limit 7' del jugador 2 ha superado el límite de 15.0 segundos.",
+            "invalid_algorithm": "Alpha-Beta Depth Limit 7",
+            "invalid_player_id": 2
+        },
+        {
+            "match_number": 7,
+            "status": "valid",
+            "valid": true,
+            "player1": "Alpha-Beta Depth Limit 7",
+            "player2": "MCTS con max depth (1000 iter. rollout 20)",
+            "winner": 1,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 458866,
+                    "cutoffs": 79247,
+                    "elapsed_time": 45.74719999998342,
+                    "max_depth": 7,
+                    "ai_turns": 8
+                },
+                "2": {
+                    "nodes_visited": 5356,
+                    "cutoffs": 1210,
+                    "elapsed_time": 0.5671229000436142,
+                    "max_depth": 20,
+                    "ai_turns": 7
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 0,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 6,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 12,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 6,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 13,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 14,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 15,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 8,
+            "status": "valid",
+            "valid": true,
+            "player1": "MCTS con max depth (1000 iter. rollout 20)",
+            "player2": "Alpha-Beta Depth Limit 7",
+            "winner": 2,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 257086,
+                    "cutoffs": 52867,
+                    "elapsed_time": 24.65499110001838,
+                    "max_depth": 7,
+                    "ai_turns": 14
+                },
+                "2": {
+                    "nodes_visited": 9225,
+                    "cutoffs": 1631,
+                    "elapsed_time": 0.8907153001055121,
+                    "max_depth": 20,
+                    "ai_turns": 14
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 0,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 12,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 13,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 14,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 15,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 16,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 17,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 0,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 18,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 19,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 20,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 21,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 22,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 23,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 0,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 24,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 0,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 25,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 26,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 27,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 28,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 9,
+            "status": "valid",
+            "valid": true,
+            "player1": "Alpha-Beta Depth Limit 7",
+            "player2": "MCTS con max depth (1000 iter. rollout 20)",
+            "winner": 1,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 180773,
+                    "cutoffs": 32431,
+                    "elapsed_time": 19.572501999966335,
+                    "max_depth": 7,
+                    "ai_turns": 4
+                },
+                "2": {
+                    "nodes_visited": 2027,
+                    "cutoffs": 778,
+                    "elapsed_time": 0.28849100007209927,
+                    "max_depth": 20,
+                    "ai_turns": 3
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 10,
+            "status": "valid",
+            "valid": true,
+            "player1": "MCTS con max depth (1000 iter. rollout 20)",
+            "player2": "Alpha-Beta Depth Limit 7",
+            "winner": 2,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 440750,
+                    "cutoffs": 80229,
+                    "elapsed_time": 44.21167890005745,
+                    "max_depth": 7,
+                    "ai_turns": 10
+                },
+                "2": {
+                    "nodes_visited": 8212,
+                    "cutoffs": 1946,
+                    "elapsed_time": 0.8895046999095939,
+                    "max_depth": 20,
+                    "ai_turns": 10
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 12,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 13,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 14,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 15,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 16,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 17,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 0,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 18,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 0,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 19,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 20,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 0,
+                        "player": 2
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 11,
+            "status": "valid",
+            "valid": true,
+            "player1": "Alpha-Beta Depth Limit 7",
+            "player2": "MCTS con max depth (1000 iter. rollout 20)",
+            "winner": 1,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 180773,
+                    "cutoffs": 32431,
+                    "elapsed_time": 19.276935699919704,
+                    "max_depth": 7,
+                    "ai_turns": 4
+                },
+                "2": {
+                    "nodes_visited": 1982,
+                    "cutoffs": 739,
+                    "elapsed_time": 0.26848800003062934,
+                    "max_depth": 20,
+                    "ai_turns": 3
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 12,
+            "status": "valid",
+            "valid": true,
+            "player1": "MCTS con max depth (1000 iter. rollout 20)",
+            "player2": "Alpha-Beta Depth Limit 7",
+            "winner": 2,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 326953,
+                    "cutoffs": 59670,
+                    "elapsed_time": 32.679091699945275,
+                    "max_depth": 7,
+                    "ai_turns": 9
+                },
+                "2": {
+                    "nodes_visited": 7871,
+                    "cutoffs": 1956,
+                    "elapsed_time": 0.8726598000503145,
+                    "max_depth": 20,
+                    "ai_turns": 9
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 12,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 13,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 14,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 15,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 16,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 0,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 17,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 18,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 13,
+            "status": "valid",
+            "valid": true,
+            "player1": "Alpha-Beta Depth Limit 7",
+            "player2": "MCTS con max depth (1000 iter. rollout 20)",
+            "winner": 1,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 455943,
+                    "cutoffs": 76738,
+                    "elapsed_time": 45.0097253001295,
+                    "max_depth": 7,
+                    "ai_turns": 11
+                },
+                "2": {
+                    "nodes_visited": 7996,
+                    "cutoffs": 1467,
+                    "elapsed_time": 0.749436000129208,
+                    "max_depth": 20,
+                    "ai_turns": 10
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 12,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 13,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 14,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 15,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 0,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 16,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 17,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 5,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 18,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 6,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 19,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 5,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 20,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 6,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 21,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 6,
+                        "player": 1
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 14,
+            "status": "move_timeout",
+            "valid": false,
+            "player1": "MCTS con max depth (1000 iter. rollout 20)",
+            "player2": "Alpha-Beta Depth Limit 7",
+            "winner": null,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 180016,
+                    "cutoffs": 28947,
+                    "elapsed_time": 20.477045899955556,
+                    "max_depth": 7,
+                    "ai_turns": 2
+                },
+                "2": {
+                    "nodes_visited": 2646,
+                    "cutoffs": 987,
+                    "elapsed_time": 0.35233560000779107,
+                    "max_depth": 20,
+                    "ai_turns": 3
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 1
+                    }
+                }
+            ],
+            "reason": "El algoritmo 'Alpha-Beta Depth Limit 7' del jugador 2 ha superado el límite de 15.0 segundos.",
+            "invalid_algorithm": "Alpha-Beta Depth Limit 7",
+            "invalid_player_id": 2
+        },
+        {
+            "match_number": 15,
+            "status": "valid",
+            "valid": true,
+            "player1": "Alpha-Beta Depth Limit 7",
+            "player2": "MCTS con max depth (1000 iter. rollout 20)",
+            "winner": 1,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 375334,
+                    "cutoffs": 64510,
+                    "elapsed_time": 38.71766179992119,
+                    "max_depth": 7,
+                    "ai_turns": 8
+                },
+                "2": {
+                    "nodes_visited": 6008,
+                    "cutoffs": 1376,
+                    "elapsed_time": 0.6224377999897115,
+                    "max_depth": 20,
+                    "ai_turns": 7
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 0,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 6,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 0,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 12,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 13,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 14,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 15,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 16,
+            "status": "valid",
+            "valid": true,
+            "player1": "MCTS con max depth (1000 iter. rollout 20)",
+            "player2": "Alpha-Beta Depth Limit 7",
+            "winner": 2,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 184187,
+                    "cutoffs": 35526,
+                    "elapsed_time": 18.193570400064345,
+                    "max_depth": 7,
+                    "ai_turns": 8
+                },
+                "2": {
+                    "nodes_visited": 6806,
+                    "cutoffs": 1650,
+                    "elapsed_time": 0.7137347001116723,
+                    "max_depth": 20,
+                    "ai_turns": 8
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 0,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 2,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 12,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 13,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 14,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 15,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 16,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 17,
+            "status": "valid",
+            "valid": true,
+            "player1": "Alpha-Beta Depth Limit 7",
+            "player2": "MCTS con max depth (1000 iter. rollout 20)",
+            "winner": 1,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 180773,
+                    "cutoffs": 32431,
+                    "elapsed_time": 18.73605090001365,
+                    "max_depth": 7,
+                    "ai_turns": 4
+                },
+                "2": {
+                    "nodes_visited": 2245,
+                    "cutoffs": 820,
+                    "elapsed_time": 0.3049440999748185,
+                    "max_depth": 20,
+                    "ai_turns": 3
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                }
+            ]
+        },
+        {
+            "match_number": 18,
+            "status": "move_timeout",
+            "valid": false,
+            "player1": "MCTS con max depth (1000 iter. rollout 20)",
+            "player2": "Alpha-Beta Depth Limit 7",
+            "winner": null,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 180016,
+                    "cutoffs": 28947,
+                    "elapsed_time": 20.114220799994655,
+                    "max_depth": 7,
+                    "ai_turns": 2
+                },
+                "2": {
+                    "nodes_visited": 2509,
+                    "cutoffs": 902,
+                    "elapsed_time": 0.32329919998301193,
+                    "max_depth": 20,
+                    "ai_turns": 3
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 2,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 6,
+                        "player": 1
+                    }
+                }
+            ],
+            "reason": "El algoritmo 'Alpha-Beta Depth Limit 7' del jugador 2 ha superado el límite de 15.0 segundos.",
+            "invalid_algorithm": "Alpha-Beta Depth Limit 7",
+            "invalid_player_id": 2
+        },
+        {
+            "match_number": 19,
+            "status": "valid",
+            "valid": true,
+            "player1": "Alpha-Beta Depth Limit 7",
+            "player2": "MCTS con max depth (1000 iter. rollout 20)",
+            "winner": 1,
+            "search_stats": {
+                "1": {
+                    "nodes_visited": 610734,
+                    "cutoffs": 100211,
+                    "elapsed_time": 59.089449200138915,
+                    "max_depth": 7,
+                    "ai_turns": 10
+                },
+                "2": {
+                    "nodes_visited": 6935,
+                    "cutoffs": 1316,
+                    "elapsed_time": 0.7012758000055328,
+                    "max_depth": 20,
+                    "ai_turns": 9
+                }
+            },
+            "decisions": [
+                {
+                    "turn_number": 1,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 2,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 3,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 4,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 5,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 6,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 4,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 7,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 8,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 1,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 9,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 3,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 10,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 3,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 11,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 1,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 12,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 5,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 13,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 5,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 14,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 6,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 15,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 16,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 6,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 17,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                },
+                {
+                    "turn_number": 18,
+                    "player_id": 2,
+                    "player_name": "MCTS con max depth (1000 iter. rollout 20)",
+                    "action": {
+                        "column": 6,
+                        "player": 2
+                    }
+                },
+                {
+                    "turn_number": 19,
+                    "player_id": 1,
+                    "player_name": "Alpha-Beta Depth Limit 7",
+                    "action": {
+                        "column": 4,
+                        "player": 1
+                    }
+                }
+            ]
+        }
+    ]
+}
